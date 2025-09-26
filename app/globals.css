@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.12), transparent 55%),
+    #020617;
+}
+
+::selection {
+  background-color: rgba(16, 185, 129, 0.35);
+  color: #f8fafc;
+}
