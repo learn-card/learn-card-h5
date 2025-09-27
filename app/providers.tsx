@@ -11,9 +11,9 @@ import {
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/react';
 
-import type { AuthMode } from './types';
-import type { Book, UserProgress, UserSummary, WordDetail } from './types';
+import type { AuthMode, Book, UserProgress, UserSummary, WordDetail } from './types';
 
 export type { AuthMode } from './types';
 
@@ -48,8 +48,6 @@ type AppState = {
   updateProgress: (bookId: string, builder: (prev?: UserProgress) => UserProgress) => void;
 };
 
-const DEFAULT_USER_ID = 1;
-
 const AppStateContext = createContext<AppState | null>(null);
 
 function createProgressMap(source: UserSummary | null): Record<string, UserProgress> {
@@ -66,12 +64,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [isLoadingBooks, setIsLoadingBooks] = useState<boolean>(true);
   const [wordsCache, setWordsCache] = useState<Record<string, WordDetail[]>>({});
   const [user, setUser] = useState<UserSummary | null>(null);
-  const [authModal, setAuthModal] = useState<AuthModalState>({
-    open: false,
-    mode: 'login',
-  });
+  const [authModal, setAuthModal] = useState<AuthModalState>({ open: false, mode: 'login' });
   const authModalRef = useRef(authModal);
   const [progressMap, setProgressMap] = useState<Record<string, UserProgress>>({});
+
+  useEffect(() => {
+    authModalRef.current = authModal;
+  }, [authModal]);
 
   const loadBooks = useCallback(async () => {
     setIsLoadingBooks(true);
@@ -90,10 +89,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
     loadBooks();
   }, [loadBooks]);
 
-  useEffect(() => {
-    authModalRef.current = authModal;
-  }, [authModal]);
-
   const closeAuthModal = useCallback(() => {
     setAuthModal({
       open: false,
@@ -104,45 +99,43 @@ export function AppProviders({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const hydrateUser = useCallback(
-    (summary: UserSummary | null) => {
-      setUser(summary);
-      setProgressMap(createProgressMap(summary));
-    },
-    []
-  );
+  const hydrateUser = useCallback((summary: UserSummary | null) => {
+    setUser(summary);
+    setProgressMap(createProgressMap(summary));
+  }, []);
 
-  const fetchUserSummary = useCallback(async (): Promise<UserSummary | null> => {
+  const fetchUserSummary = useCallback(async (email: string): Promise<UserSummary> => {
     try {
-      const response = await fetch(`/api/user/progress?userId=${DEFAULT_USER_ID}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch progress');
-      }
+      const response = await fetch(`/api/user/summary?email=${encodeURIComponent(email)}`);
       const payload = await response.json();
-      const progress: UserProgress[] = payload.data ?? [];
-      if (progress.length === 0) {
-        return {
-          id: String(DEFAULT_USER_ID),
-          email: 'learner@example.com',
-          displayName: '学习者',
-          avatarUrl: null,
-          learnedBooks: 0,
-          learnedWords: 0,
-          progress: [],
-        };
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to fetch user');
+      }
+      const progress: UserProgress[] = payload.data?.progress ?? [];
+      const userMeta = payload.data?.user;
+      if (!userMeta) {
+        throw new Error('Missing user information');
       }
       return {
-        id: String(DEFAULT_USER_ID),
-        email: 'learner@example.com',
-        displayName: '学习者',
+        id: String(userMeta.id),
+        email: userMeta.email,
+        displayName: userMeta.email.split('@')[0],
         avatarUrl: null,
         learnedBooks: progress.length,
-        learnedWords: progress.reduce((sum, item) => sum + item.learnedWords, 0),
+        learnedWords: progress.reduce((sum, item) => sum + (item.learnedWords ?? 0), 0),
         progress,
       };
     } catch (error) {
       console.error('Failed to load user summary', error);
-      return null;
+      return {
+        id: email,
+        email,
+        displayName: email.split('@')[0],
+        avatarUrl: null,
+        learnedBooks: 0,
+        learnedWords: 0,
+        progress: [],
+      };
     }
   }, []);
 
@@ -150,27 +143,63 @@ export function AppProviders({ children }: { children: ReactNode }) {
     async (email: string) => {
       const modalState = authModalRef.current;
       closeAuthModal();
-      const summary = await fetchUserSummary();
-      if (summary) {
-        hydrateUser({
-          ...summary,
-          email,
-          displayName: summary.displayName ?? email.split('@')[0],
-        });
-        const target =
-          modalState.redirectTo ||
-          (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null);
-        if (target) {
-          router.push(target);
-        }
-      } else {
-        setAuthModal((prev) => ({
-          ...prev,
-          message: '登录成功，但无法读取用户数据。',
-        }));
+      const summary = await fetchUserSummary(email);
+      hydrateUser(summary);
+      const target =
+        modalState.redirectTo ||
+        (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null);
+      if (target) {
+        router.push(target);
       }
     },
     [closeAuthModal, fetchUserSummary, hydrateUser, router]
+  );
+
+  const authenticate = useCallback(
+    async (email: string, password: string) => {
+      setAuthModal((prev) => ({ ...prev, message: undefined }));
+      try {
+        const result = await nextAuthSignIn('credentials', {
+          redirect: false,
+          email,
+          password,
+        });
+
+        let errorCode = result?.error ?? null;
+        if (!errorCode && typeof result?.url === 'string') {
+          const match = result.url.match(/[?&]error=([^&]+)/);
+          if (match) {
+            try {
+              errorCode = decodeURIComponent(match[1]);
+            } catch {
+              errorCode = match[1];
+            }
+          }
+        }
+
+        if (errorCode) {
+          setAuthModal((prev) => ({
+            ...prev,
+            message:
+              errorCode === 'CredentialsSignin'
+                ? '邮箱或密码错误。'
+                : '登录失败，请稍后再试。',
+          }));
+          return false;
+        }
+
+        await handleAuthSuccess(email);
+        return true;
+      } catch (error) {
+        console.error('Failed to authenticate', error);
+        setAuthModal((prev) => ({
+          ...prev,
+          message: '登录失败，请稍后再试。',
+        }));
+        return false;
+      }
+    },
+    [handleAuthSuccess]
   );
 
   const login = useCallback(
@@ -182,9 +211,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         }));
         return;
       }
-      await handleAuthSuccess(email);
+      await authenticate(email, password);
     },
-    [handleAuthSuccess]
+    [authenticate]
   );
 
   const register = useCallback(
@@ -196,12 +225,40 @@ export function AppProviders({ children }: { children: ReactNode }) {
         }));
         return;
       }
-      await handleAuthSuccess(email);
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          setAuthModal((prev) => ({
+            ...prev,
+            message: payload.error ?? '注册失败，请稍后再试。',
+          }));
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to register', error);
+        setAuthModal((prev) => ({
+          ...prev,
+          message: '注册失败，请稍后再试。',
+        }));
+        return;
+      }
+
+      await authenticate(email, password);
     },
-    [handleAuthSuccess]
+    [authenticate]
   );
 
   const logout = useCallback(() => {
+    nextAuthSignOut({ redirect: false }).catch((error) => {
+      console.error('Failed to sign out', error);
+    });
     hydrateUser(null);
   }, [hydrateUser]);
 
@@ -211,7 +268,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       mode: state?.mode ?? prev.mode ?? 'login',
       targetBookId: state?.targetBookId,
       redirectTo: state?.redirectTo,
-      message: state?.message,
+      message: state?.message ?? undefined,
     }));
   }, []);
 
@@ -219,6 +276,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     setAuthModal((prev) => ({
       ...prev,
       mode,
+      message: undefined,
     }));
   }, []);
 
@@ -239,10 +297,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           ...prev,
           progress: nextProgress,
           learnedBooks: nextProgress.length,
-          learnedWords: nextProgress.reduce(
-            (sum, item) => sum + item.learnedWords,
-            0
-          ),
+          learnedWords: nextProgress.reduce((sum, item) => sum + (item.learnedWords ?? 0), 0),
         };
       });
     },
@@ -268,25 +323,23 @@ export function AppProviders({ children }: { children: ReactNode }) {
     [wordsCache]
   );
 
-  const value = useMemo<AppState>(() => {
-    return {
-      books,
-      isLoadingBooks,
-      reloadBooks: loadBooks,
-      getWordsForBook,
-      user,
-      isLoggedIn: Boolean(user),
-      userProgress: progressMap,
-      login,
-      register,
-      logout,
-      openAuthModal,
-      closeAuthModal,
-      setAuthMode,
-      authModal,
-      updateProgress,
-    };
-  }, [
+  const value = useMemo<AppState>(() => ({
+    books,
+    isLoadingBooks,
+    reloadBooks: loadBooks,
+    getWordsForBook,
+    user,
+    isLoggedIn: Boolean(user),
+    userProgress: progressMap,
+    login,
+    register,
+    logout,
+    openAuthModal,
+    closeAuthModal,
+    setAuthMode,
+    authModal,
+    updateProgress,
+  }), [
     authModal,
     books,
     closeAuthModal,
@@ -303,9 +356,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     user,
   ]);
 
-  return (
-    <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>
-  );
+  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
 export function useAppState() {
