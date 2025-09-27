@@ -4,13 +4,12 @@ import { useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { BookCard } from '../../components/book-card';
-import { mockBooks } from '../../data/mock';
 import { useAppState } from '../../providers';
 
 export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoggedIn, user, logout, openAuthModal } = useAppState();
+  const { books, isLoggedIn, user, logout, openAuthModal } = useAppState();
 
   const authIntent = searchParams.get('auth');
   const targetBook = searchParams.get('book');
@@ -33,10 +32,10 @@ export default function ProfilePage() {
       )
       .map((progress) => ({
         progress,
-        book: mockBooks.find((book) => book.bookId === progress.bookId),
+        book: books.find((book) => book.bookId === progress.bookId),
       }))
       .filter((item) => Boolean(item.book));
-  }, [isLoggedIn, user]);
+  }, [books, isLoggedIn, user]);
 
   const handleContinue = (bookId: string) => {
     router.push(`/learn/${bookId}`);
@@ -99,10 +98,10 @@ export default function ProfilePage() {
               <BookCard
                 key={item.progress.bookId}
                 title={item.book!.title}
-                description={item.book!.description}
-                coverUrl={item.book!.coverUrl}
+                description={item.book!.description ?? ''}
+                coverUrl={item.book!.coverUrl ?? ''}
                 wordsCount={item.book!.wordsCount}
-                tags={item.book!.tags}
+                tags={item.book!.tags ?? []}
                 progress={{
                   ...item.progress,
                   wordsCount: item.book!.wordsCount,

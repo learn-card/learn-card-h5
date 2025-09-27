@@ -4,20 +4,28 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { WordCard } from '../../../components/word-card';
-import { mockBooks, mockWords } from '../../../data/mock';
 import { useAppState } from '../../../providers';
+import type { WordDetail } from '../../../types';
 
 export default function LearnPage() {
   const params = useParams<{ bookId: string }>();
   const router = useRouter();
-  const { isLoggedIn, openAuthModal, userProgress, updateProgress } = useAppState();
+  const {
+    books,
+    getWordsForBook,
+    isLoggedIn,
+    openAuthModal,
+    userProgress,
+    updateProgress,
+  } = useAppState();
 
   const book = useMemo(
-    () => mockBooks.find((item) => item.bookId === params.bookId),
-    [params.bookId]
+    () => books.find((item) => item.bookId === params.bookId),
+    [books, params.bookId]
   );
 
-  const words = mockWords[params.bookId] ?? [];
+  const [words, setWords] = useState<WordDetail[]>([]);
+  const [isLoadingWords, setIsLoadingWords] = useState(true);
   const totalWords = words.length;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,7 +33,16 @@ export default function LearnPage() {
 
   useEffect(() => {
     setInitialised(false);
-  }, [params.bookId, isLoggedIn]);
+    setIsLoadingWords(true);
+    getWordsForBook(params.bookId).then((list) => {
+      setWords(list);
+      setIsLoadingWords(false);
+    });
+  }, [getWordsForBook, params.bookId]);
+
+  useEffect(() => {
+    setInitialised(false);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (initialised) return;
@@ -59,9 +76,24 @@ export default function LearnPage() {
   }, [currentIndex, initialised, isLoggedIn, persistProgress]);
 
   if (!book) {
+    if (isLoadingWords) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
+          正在加载单词书数据…
+        </div>
+      );
+    }
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
         暂未找到该单词书。
+      </div>
+    );
+  }
+
+  if (isLoadingWords) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
+        正在加载单词…
       </div>
     );
   }

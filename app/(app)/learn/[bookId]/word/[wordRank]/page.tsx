@@ -1,28 +1,55 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { WordDetailView } from '../../../../../components/word-detail';
-import { mockBooks, mockWords } from '../../../../../data/mock';
+import { useAppState } from '../../../../../providers';
+import type { WordDetail } from '../../../../../types';
 
 export default function WordDetailPage() {
   const params = useParams<{ bookId: string; wordRank: string }>();
   const router = useRouter();
 
+  const { books, getWordsForBook } = useAppState();
+
   const book = useMemo(
-    () => mockBooks.find((item) => item.bookId === params.bookId),
-    [params.bookId]
+    () => books.find((item) => item.bookId === params.bookId),
+    [books, params.bookId]
   );
 
   const wordRank = Number(params.wordRank);
-  const words = mockWords[params.bookId] ?? [];
-  const detail = words.find((word) => word.wordRank === wordRank);
+  const [detail, setDetail] = useState<WordDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getWordsForBook(params.bookId).then((words) => {
+      const match = words.find((word) => word.wordRank === wordRank) ?? null;
+      setDetail(match);
+      setIsLoading(false);
+    });
+  }, [getWordsForBook, params.bookId, wordRank]);
 
   if (!book) {
+    if (isLoading) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
+          正在加载数据…
+        </div>
+      );
+    }
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
         暂未找到该单词书。
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
+        正在加载单词详情…
       </div>
     );
   }

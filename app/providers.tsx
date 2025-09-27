@@ -12,13 +12,10 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
-import type {
-  MockUser,
-  UserProgress,
-} from './data/mock';
-import { mockUser } from './data/mock';
+import type { AuthMode } from './types';
+import type { Book, UserProgress, UserSummary, WordDetail } from './types';
 
-export type AuthMode = 'login' | 'register';
+export type { AuthMode } from './types';
 
 type AuthModalState = {
   open: boolean;
@@ -34,7 +31,11 @@ type LoginPayload = {
 };
 
 type AppState = {
-  user: MockUser | null;
+  books: Book[];
+  isLoadingBooks: boolean;
+  reloadBooks: () => Promise<void>;
+  getWordsForBook: (bookId: string) => Promise<WordDetail[]>;
+  user: UserSummary | null;
   isLoggedIn: boolean;
   userProgress: Record<string, UserProgress>;
   login: (payload: LoginPayload) => Promise<void>;
@@ -47,16 +48,11 @@ type AppState = {
   updateProgress: (bookId: string, builder: (prev?: UserProgress) => UserProgress) => void;
 };
 
+const DEFAULT_USER_ID = 1;
+
 const AppStateContext = createContext<AppState | null>(null);
 
-function cloneUser(source: MockUser): MockUser {
-  return {
-    ...source,
-    progress: source.progress.map((item) => ({ ...item })),
-  };
-}
-
-function createProgressMap(source: MockUser | null): Record<string, UserProgress> {
+function createProgressMap(source: UserSummary | null): Record<string, UserProgress> {
   if (!source) return {};
   return source.progress.reduce<Record<string, UserProgress>>((acc, item) => {
     acc[item.bookId] = { ...item };
@@ -66,13 +62,33 @@ function createProgressMap(source: MockUser | null): Record<string, UserProgress
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<MockUser | null>(null);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoadingBooks, setIsLoadingBooks] = useState<boolean>(true);
+  const [wordsCache, setWordsCache] = useState<Record<string, WordDetail[]>>({});
+  const [user, setUser] = useState<UserSummary | null>(null);
   const [authModal, setAuthModal] = useState<AuthModalState>({
     open: false,
     mode: 'login',
   });
   const authModalRef = useRef(authModal);
   const [progressMap, setProgressMap] = useState<Record<string, UserProgress>>({});
+
+  const loadBooks = useCallback(async () => {
+    setIsLoadingBooks(true);
+    try {
+      const response = await fetch('/api/books');
+      const payload = await response.json();
+      setBooks(payload.data ?? []);
+    } catch (error) {
+      console.error('Failed to load books', error);
+    } finally {
+      setIsLoadingBooks(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBooks();
+  }, [loadBooks]);
 
   useEffect(() => {
     authModalRef.current = authModal;
@@ -88,19 +104,74 @@ export function AppProviders({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const handleAuthSuccess = useCallback(() => {
-    const modalState = authModalRef.current;
-    closeAuthModal();
-    const hydratedUser = cloneUser(mockUser);
-    setUser(hydratedUser);
-    setProgressMap(createProgressMap(hydratedUser));
-    const target =
-      modalState.redirectTo ||
-      (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null);
-    if (target) {
-      router.push(target);
+  const hydrateUser = useCallback(
+    (summary: UserSummary | null) => {
+      setUser(summary);
+      setProgressMap(createProgressMap(summary));
+    },
+    []
+  );
+
+  const fetchUserSummary = useCallback(async (): Promise<UserSummary | null> => {
+    try {
+      const response = await fetch(`/api/user/progress?userId=${DEFAULT_USER_ID}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch progress');
+      }
+      const payload = await response.json();
+      const progress: UserProgress[] = payload.data ?? [];
+      if (progress.length === 0) {
+        return {
+          id: String(DEFAULT_USER_ID),
+          email: 'learner@example.com',
+          displayName: '学习者',
+          avatarUrl: null,
+          learnedBooks: 0,
+          learnedWords: 0,
+          progress: [],
+        };
+      }
+      return {
+        id: String(DEFAULT_USER_ID),
+        email: 'learner@example.com',
+        displayName: '学习者',
+        avatarUrl: null,
+        learnedBooks: progress.length,
+        learnedWords: progress.reduce((sum, item) => sum + item.learnedWords, 0),
+        progress,
+      };
+    } catch (error) {
+      console.error('Failed to load user summary', error);
+      return null;
     }
-  }, [closeAuthModal, router]);
+  }, []);
+
+  const handleAuthSuccess = useCallback(
+    async (email: string) => {
+      const modalState = authModalRef.current;
+      closeAuthModal();
+      const summary = await fetchUserSummary();
+      if (summary) {
+        hydrateUser({
+          ...summary,
+          email,
+          displayName: summary.displayName ?? email.split('@')[0],
+        });
+        const target =
+          modalState.redirectTo ||
+          (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null);
+        if (target) {
+          router.push(target);
+        }
+      } else {
+        setAuthModal((prev) => ({
+          ...prev,
+          message: '登录成功，但无法读取用户数据。',
+        }));
+      }
+    },
+    [closeAuthModal, fetchUserSummary, hydrateUser, router]
+  );
 
   const login = useCallback(
     async ({ email, password }: LoginPayload) => {
@@ -111,7 +182,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         }));
         return;
       }
-      handleAuthSuccess();
+      await handleAuthSuccess(email);
     },
     [handleAuthSuccess]
   );
@@ -125,15 +196,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
         }));
         return;
       }
-      handleAuthSuccess();
+      await handleAuthSuccess(email);
     },
     [handleAuthSuccess]
   );
 
   const logout = useCallback(() => {
-    setUser(null);
-    setProgressMap({});
-  }, []);
+    hydrateUser(null);
+  }, [hydrateUser]);
 
   const openAuthModal = useCallback((state?: Partial<AuthModalState>) => {
     setAuthModal((prev) => ({
@@ -179,8 +249,31 @@ export function AppProviders({ children }: { children: ReactNode }) {
     []
   );
 
+  const getWordsForBook = useCallback(
+    async (bookId: string) => {
+      if (wordsCache[bookId]) {
+        return wordsCache[bookId];
+      }
+      try {
+        const response = await fetch(`/api/books/${bookId}/words`);
+        const payload = await response.json();
+        const wordsList: WordDetail[] = payload.data ?? [];
+        setWordsCache((prev) => ({ ...prev, [bookId]: wordsList }));
+        return wordsList;
+      } catch (error) {
+        console.error('Failed to load words', error);
+        return [];
+      }
+    },
+    [wordsCache]
+  );
+
   const value = useMemo<AppState>(() => {
     return {
+      books,
+      isLoadingBooks,
+      reloadBooks: loadBooks,
+      getWordsForBook,
       user,
       isLoggedIn: Boolean(user),
       userProgress: progressMap,
@@ -193,7 +286,22 @@ export function AppProviders({ children }: { children: ReactNode }) {
       authModal,
       updateProgress,
     };
-  }, [authModal, closeAuthModal, login, logout, openAuthModal, progressMap, register, setAuthMode, updateProgress, user]);
+  }, [
+    authModal,
+    books,
+    closeAuthModal,
+    getWordsForBook,
+    isLoadingBooks,
+    loadBooks,
+    login,
+    logout,
+    openAuthModal,
+    progressMap,
+    register,
+    setAuthMode,
+    updateProgress,
+    user,
+  ]);
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

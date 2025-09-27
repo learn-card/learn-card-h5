@@ -3,11 +3,10 @@
 import Image from 'next/image';
 import { useMemo } from 'react';
 
-export type BookProgressInfo = {
-  learnedWords?: number;
-  lastIndex?: number;
+import type { UserProgress } from '../types';
+
+export type BookProgressInfo = UserProgress & {
   wordsCount?: number;
-  updatedAt?: string;
 };
 
 type BookCardProps = {
@@ -50,6 +49,10 @@ export function BookCard({
     return Math.min(100, Math.round((index / base) * 100));
   }, [learnedCount, progress, wordsCount]);
 
+  const imageSrc = coverUrl && coverUrl.trim().length > 0
+    ? coverUrl
+    : 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=600&q=80';
+
   return (
     <div
       className={`group flex w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-900/10 shadow-lg shadow-emerald-500/5 ring-1 ring-white/5 transition hover:border-emerald-400/30 hover:shadow-emerald-500/20 ${
@@ -58,7 +61,7 @@ export function BookCard({
     >
       <div className="relative h-40 w-full overflow-hidden bg-slate-800">
         <Image
-          src={coverUrl}
+          src={imageSrc}
           alt={title}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"

@@ -1,6 +1,6 @@
 'use client';
 
-import type { WordDetail } from '../data/mock';
+import type { WordDetail } from '../types';
 
 type WordCardProps = {
   bookTitle: string;
