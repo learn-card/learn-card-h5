@@ -179,36 +179,79 @@ function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail
   const wordNode = (content.word ?? content) as Record<string, any> | undefined;
   if (!wordNode) return null;
 
-  const wordHead = (wordNode.wordHead ?? content.wordHead ?? fallbackHeadWord) as string;
+  const contentPayload =
+    (wordNode.content as Record<string, any> | undefined) ??
+    (content.content as Record<string, any> | undefined) ??
+    wordNode;
+
+  const wordHead =
+    (wordNode.wordHead ?? contentPayload.wordHead ?? fallbackHeadWord) as string;
   if (!wordHead) return null;
 
   const translations = normalizeTranslations(
-    wordNode.trans ?? content.trans ?? wordNode.translation
+    contentPayload.trans ??
+      contentPayload.translation ??
+      wordNode.trans ??
+      content.trans ??
+      wordNode.translation
   );
-  const synonymList = normalizeSynonyms(wordNode.syno ?? content.syno);
-  const phraseList = normalizePhrases(wordNode.phrase ?? content.phrase);
-  const relWords = normalizeRelWords(wordNode.relWord ?? content.relWord);
+  const synonymList = normalizeSynonyms(
+    contentPayload.syno ?? wordNode.syno ?? content.syno
+  );
+  const phraseList = normalizePhrases(
+    contentPayload.phrase ?? wordNode.phrase ?? content.phrase
+  );
+  const relWords = normalizeRelWords(
+    contentPayload.relWord ?? wordNode.relWord ?? content.relWord
+  );
   const sentences = normalizeSentences(
-    wordNode.sentence?.sentences ??
+    contentPayload.sentence?.sentences ??
+      wordNode.sentence?.sentences ??
+      contentPayload.sentences ??
       wordNode.sentences ??
       content.sentence?.sentences ??
       content.sentences
   );
 
+  const wordContent = {
+    syno: contentPayload.syno,
+    trans: contentPayload.trans,
+    phrase: contentPayload.phrase,
+    relWord: contentPayload.relWord,
+    ukphone: contentPayload.ukphone ?? contentPayload.ukPhone,
+    usphone: contentPayload.usphone ?? contentPayload.usPhone,
+    sentence: contentPayload.sentence,
+    ukspeech: contentPayload.ukspeech,
+    usspeech: contentPayload.usspeech,
+  } satisfies WordDetail['content'];
+
   return {
     wordRank: Number(content.wordRank ?? wordNode.wordRank ?? 0),
     wordHead,
     ukphone:
-      wordNode.ukphone ?? wordNode.ukPhone ?? content.ukphone ?? content.ukPhone,
+      wordNode.ukphone ??
+      wordNode.ukPhone ??
+      contentPayload.ukphone ??
+      contentPayload.ukPhone ??
+      content.ukphone ??
+      content.ukPhone,
     usphone:
-      wordNode.usphone ?? wordNode.usPhone ?? content.usphone ?? content.usPhone,
-    ukspeech: wordNode.ukspeech ?? content.ukspeech,
-    usspeech: wordNode.usspeech ?? content.usspeech,
+      wordNode.usphone ??
+      wordNode.usPhone ??
+      contentPayload.usphone ??
+      contentPayload.usPhone ??
+      content.usphone ??
+      content.usPhone,
+    ukspeech:
+      wordNode.ukspeech ?? contentPayload.ukspeech ?? content.ukspeech,
+    usspeech:
+      wordNode.usspeech ?? contentPayload.usspeech ?? content.usspeech,
     trans: translations,
     syno: synonymList,
     phrase: phraseList,
     relWord: relWords,
     sentences,
+    content: wordContent,
   };
 }
 

@@ -25,18 +25,45 @@ export function WordCard({
   disablePrev,
   disableNext,
 }: WordCardProps) {
-  const translations = detail.trans ?? [];
+  // 优先使用content字段的数据，如果没有则使用原有字段
+  const contentTrans = detail.content?.trans;
+  const contentSentences = detail.content?.sentence?.sentences;
+  const contentSyno = detail.content?.syno?.synos;
+  const contentPhrases = detail.content?.phrase?.phrases;
+  
+  // 音标信息：优先使用content字段
+  const ukphone = detail.content?.ukphone || detail.ukphone;
+  const usphone = detail.content?.usphone || detail.usphone;
+  
+  // 释义信息：优先使用content字段
+  const translations = contentTrans || detail.trans || [];
   const primaryTrans = translations[0];
   const extraTranslations = translations.slice(1, 3);
-  const synonymChips = Array.from(
-    new Set(
-      (detail.syno ?? [])
-        .flatMap((item) => item.hwds)
-        .filter((item): item is string => Boolean(item && item.trim().length > 0))
-    )
-  ).slice(0, 4);
-  const phraseHighlights = (detail.phrase ?? []).slice(0, 2);
-  const firstSentence = detail.sentences?.[0];
+  
+  // 同义词信息：优先使用content字段
+  const synonymChips = contentSyno 
+    ? Array.from(
+        new Set(
+          contentSyno
+            .flatMap((item) => item.hwds.map(h => h.w))
+            .filter((item): item is string => Boolean(item && item.trim().length > 0))
+        )
+      ).slice(0, 4)
+    : Array.from(
+        new Set(
+          (detail.syno ?? [])
+            .flatMap((item) => item.hwds)
+            .filter((item): item is string => Boolean(item && item.trim().length > 0))
+        )
+      ).slice(0, 4);
+  
+  // 短语信息：优先使用content字段
+  const phraseHighlights = contentPhrases 
+    ? contentPhrases.slice(0, 2).map(p => ({ phrase: p.pContent, meaning: p.pCn }))
+    : (detail.phrase ?? []).slice(0, 2);
+  
+  // 例句信息：优先使用content字段
+  const firstSentence = contentSentences?.[0] || detail.sentences?.[0];
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -57,17 +84,17 @@ export function WordCard({
         <div className="flex items-baseline gap-4">
           <span className="text-4xl font-bold text-white">{detail.wordHead}</span>
           <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-200/90">
-            {detail.ukphone ? (
-              <span>UK /{detail.ukphone}/</span>
+            {ukphone ? (
+              <span>UK /{ukphone}/</span>
             ) : null}
-            {detail.usphone ? (
-              <span>US /{detail.usphone}/</span>
+            {usphone ? (
+              <span>US /{usphone}/</span>
             ) : null}
           </div>
         </div>
         {primaryTrans ? (
           <p className="mt-6 text-lg text-slate-200">
-            {primaryTrans.pos ? <span className="mr-2 text-emerald-300">{primaryTrans.pos}</span> : null}
+            {'pos' in primaryTrans && primaryTrans.pos ? <span className="mr-2 text-emerald-300">{primaryTrans.pos}</span> : null}
             {primaryTrans.tranCn}
             {primaryTrans.tranOther ? (
               <span className="ml-2 text-sm text-slate-400">{primaryTrans.tranOther}</span>
@@ -78,7 +105,7 @@ export function WordCard({
           <ul className="mt-4 space-y-1 text-sm text-slate-300/90">
             {extraTranslations.map((item, index) => (
               <li key={index} className="leading-relaxed">
-                {item.pos ? <span className="mr-2 text-emerald-300/80">{item.pos}</span> : null}
+                {'pos' in item && item.pos ? <span className="mr-2 text-emerald-300/80">{item.pos}</span> : null}
                 <span>{item.tranCn}</span>
                 {item.tranOther ? (
                   <span className="ml-2 text-xs text-slate-500">{item.tranOther}</span>

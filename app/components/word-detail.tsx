@@ -8,14 +8,39 @@ type WordDetailProps = {
 };
 
 export function WordDetailView({ detail, onBack }: WordDetailProps) {
+  // 优先使用content字段的数据
+  const contentTrans = detail.content?.trans;
+  const contentSyno = detail.content?.syno;
+  const contentPhrases = detail.content?.phrase;
+  const contentRelWords = detail.content?.relWord;
+  const contentSentences = detail.content?.sentence;
+  
+  // 音标信息：优先使用content字段
+  const ukphone = detail.content?.ukphone || detail.ukphone;
+  const usphone = detail.content?.usphone || detail.usphone;
+  
+  // 释义信息：优先使用content字段
+  const translations = contentTrans || detail.trans || [];
+  
+  // 同义词信息：优先使用content字段
+  const synonyms = contentSyno?.synos || detail.syno || [];
+  
+  // 短语信息：优先使用content字段
+  const phrases = contentPhrases?.phrases || detail.phrase || [];
+  
+  // 同根词信息：优先使用content字段
+  const relWords = contentRelWords?.rels || detail.relWord || [];
+  
+  // 例句信息：优先使用content字段
+  const sentences = contentSentences?.sentences || detail.sentences || [];
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">{detail.wordHead}</h1>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-emerald-200/90">
-            {detail.ukphone ? <span>UK /{detail.ukphone}/</span> : null}
-            {detail.usphone ? <span>US /{detail.usphone}/</span> : null}
+            {ukphone ? <span>UK /{ukphone}/</span> : null}
+            {usphone ? <span>US /{usphone}/</span> : null}
           </div>
         </div>
         <button
@@ -41,9 +66,9 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
       <section className="rounded-3xl border border-white/5 bg-slate-900/70 p-6 shadow-lg shadow-emerald-500/10">
         <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">释义</h2>
         <ul className="mt-4 space-y-3 text-sm text-slate-200">
-          {detail.trans?.map((item, index) => (
+          {translations.map((item, index) => (
             <li key={index} className="leading-relaxed">
-              {item.pos ? <span className="mr-2 text-emerald-300">{item.pos}</span> : null}
+              {'pos' in item && item.pos ? <span className="mr-2 text-emerald-300">{item.pos}</span> : null}
               <span>{item.tranCn}</span>
               {item.tranOther ? (
                 <span className="ml-2 text-slate-400">{item.tranOther}</span>
@@ -53,17 +78,19 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
         </ul>
       </section>
 
-      {detail.syno && detail.syno.length > 0 ? (
+      {synonyms && synonyms.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">同近义</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
-            {detail.syno.map((item, index) => (
+            {synonyms.map((item, index) => (
               <li key={index}>
                 {item.pos ? (
                   <p className="text-emerald-200/90">{item.pos}</p>
                 ) : null}
-                {item.hwds.length > 0 ? (
-                  <p className="mt-1 text-slate-200">{item.hwds.join(' / ')}</p>
+                {('hwds' in item ? item.hwds : []).length > 0 ? (
+                  <p className="mt-1 text-slate-200">
+                    {('hwds' in item ? item.hwds.map(h => typeof h === 'string' ? h : h.w) : []).join(' / ')}
+                  </p>
                 ) : null}
                 {item.tran ? (
                   <p className="mt-1 text-xs text-slate-400">{item.tran}</p>
@@ -74,38 +101,46 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
         </section>
       ) : null}
 
-      {detail.phrase && detail.phrase.length > 0 ? (
+      {phrases && phrases.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">短语</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
-            {detail.phrase.map((item, index) => (
+            {phrases.map((item, index) => (
               <li key={index}>
-                <p className="font-medium text-white">{item.phrase}</p>
-                <p className="mt-1 text-slate-400">{item.meaning}</p>
+                <p className="font-medium text-white">
+                  {'pContent' in item ? item.pContent : item.phrase}
+                </p>
+                <p className="mt-1 text-slate-400">
+                  {'pCn' in item ? item.pCn : item.meaning}
+                </p>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      {detail.relWord && detail.relWord.length > 0 ? (
+      {relWords && relWords.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">同根词</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
-            {detail.relWord.map((item, index) => (
+            {relWords.map((item, index) => (
               <li key={index}>
                 {item.pos ? (
                   <p className="text-emerald-200/80">{item.pos}</p>
                 ) : null}
                 <ul className="mt-1 flex flex-wrap gap-2 text-slate-300">
-                  {item.words.map((word) => (
+                  {('words' in item ? item.words : []).map((word) => (
                     <li
-                      key={`${word.headWord}-${word.tranCn}`}
+                      key={`${'hwd' in word ? word.hwd : word.headWord}-${'tran' in word ? word.tran : word.tranCn}`}
                       className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
                     >
-                      <span className="mr-2 text-white">{word.headWord}</span>
-                      {word.tranCn ? (
-                        <span className="text-xs text-slate-400">{word.tranCn}</span>
+                      <span className="mr-2 text-white">
+                        {'hwd' in word ? word.hwd : word.headWord}
+                      </span>
+                      {('tran' in word ? word.tran : word.tranCn) ? (
+                        <span className="text-xs text-slate-400">
+                          {'tran' in word ? word.tran : word.tranCn}
+                        </span>
                       ) : null}
                     </li>
                   ))}
@@ -116,11 +151,11 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
         </section>
       ) : null}
 
-      {detail.sentences && detail.sentences.length > 0 ? (
+      {sentences && sentences.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">例句</h2>
           <ul className="mt-4 space-y-4 text-sm text-slate-200">
-            {detail.sentences.map((item, index) => (
+            {sentences.map((item, index) => (
               <li key={index}>
                 <p className="font-medium text-white">{item.sContent}</p>
                 {item.sCn ? <p className="mt-1 text-slate-400">{item.sCn}</p> : null}
