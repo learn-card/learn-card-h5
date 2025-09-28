@@ -20,15 +20,65 @@ export function WordDetailView({ detail }: WordDetailProps) {
   
   // 释义信息：优先使用content字段
   const translations = contentTrans || detail.trans || [];
+  const normalizedTranslations = translations.map((item) => {
+    const maybeContent = item as any;
+    if (maybeContent && typeof maybeContent === 'object' && 'tranCn' in maybeContent && 'tranOther' in maybeContent && ('descCn' in maybeContent || 'descOther' in maybeContent)) {
+      return {
+        pos: undefined as string | undefined,
+        cn: String(maybeContent.tranCn ?? ''),
+        en: maybeContent.tranOther ? String(maybeContent.tranOther) : undefined,
+        note: maybeContent.descCn ? String(maybeContent.descCn) : maybeContent.descOther ? String(maybeContent.descOther) : undefined,
+      };
+    }
+    const fallbackItem = item as WordDetail['trans'][number];
+    return {
+      pos: fallbackItem.pos,
+      cn: fallbackItem.tranCn,
+      en: fallbackItem.tranOther,
+      note: undefined as string | undefined,
+    };
+  });
   
   // 同义词信息：优先使用content字段
-  const synonyms = contentSyno?.synos || detail.syno || [];
+  const synonyms = contentSyno?.synos
+    ? contentSyno.synos.map((item) => ({
+        pos: item.pos,
+        words: item.hwds.map((h) => h.w),
+        notes: item.tran,
+      }))
+    : (detail.syno ?? []).map((item) => ({
+        pos: item.pos,
+        words: item.hwds,
+        notes: item.tran,
+      }));
   
   // 短语信息：优先使用content字段
-  const phrases = contentPhrases?.phrases || detail.phrase || [];
+  const phrases = contentPhrases?.phrases
+    ? contentPhrases.phrases.map((item) => ({
+        phrase: item.pContent,
+        meaning: item.pCn,
+      }))
+    : (detail.phrase ?? []).map((item) => ({
+        phrase: item.phrase,
+        meaning: item.meaning,
+      }));
   
   // 同根词信息：优先使用content字段
-  const relWords = contentRelWords?.rels || detail.relWord || [];
+  const relWords = contentRelWords?.rels
+    ? contentRelWords.rels.map((group) => ({
+        pos: group.pos,
+        words: group.words.map((word) => ({
+          head: word.hwd,
+          meaning: word.tran,
+        })),
+      }))
+    : (detail.relWord ?? []).map((group) => ({
+        pos: group.pos,
+        words: group.words.map((word) => ({
+          head: word.headWord,
+          meaning: word.tranCn,
+        })),
+      }));
   
   // 例句信息：优先使用content字段
   const sentences = contentSentences?.sentences || detail.sentences || [];
@@ -44,35 +94,41 @@ export function WordDetailView({ detail }: WordDetailProps) {
 
       <section className="rounded-3xl border border-white/5 bg-slate-900/70 p-6 shadow-lg shadow-emerald-500/10">
         <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">释义</h2>
-        <ul className="mt-4 space-y-3 text-sm text-slate-200">
-          {translations.map((item, index) => (
-            <li key={index} className="leading-relaxed">
-              {'pos' in item && item.pos ? <span className="mr-2 text-emerald-300">{item.pos}</span> : null}
-              <span>{item.tranCn}</span>
-              {item.tranOther ? (
-                <span className="ml-2 text-slate-400">{item.tranOther}</span>
-              ) : null}
+        <ul className="mt-4 space-y-4 text-sm text-slate-200">
+          {normalizedTranslations.map((item, index) => (
+            <li key={index} className="space-y-2">
+              <p className="text-lg">
+                {item.pos ? <span className="mr-2 text-emerald-300">{item.pos}</span> : null}
+                {item.cn}
+              </p>
+              {item.en ? <p className="text-sm text-slate-400">{item.en}</p> : null}
+              {item.note ? <p className="text-xs text-slate-500">{item.note}</p> : null}
             </li>
           ))}
         </ul>
       </section>
 
-      {synonyms && synonyms.length > 0 ? (
+      {synonyms.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">同近义</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
-            {synonyms.map((item, index) => (
-              <li key={index}>
-                {item.pos ? (
-                  <p className="text-emerald-200/90">{item.pos}</p>
+            {synonyms.slice(0, 4).map((item, index) => (
+              <li key={index} className="space-y-2">
+                {item.pos ? <p className="text-emerald-200/90">{item.pos}</p> : null}
+                {item.words.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 text-xs text-emerald-200/80">
+                    {item.words.map((word) => (
+                      <span
+                        key={word}
+                        className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1"
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
                 ) : null}
-                {('hwds' in item ? item.hwds : []).length > 0 ? (
-                  <p className="mt-1 text-slate-200">
-                    {('hwds' in item ? item.hwds.map(h => typeof h === 'string' ? h : h.w) : []).join(' / ')}
-                  </p>
-                ) : null}
-                {item.tran ? (
-                  <p className="mt-1 text-xs text-slate-400">{item.tran}</p>
+                {item.notes ? (
+                  <p className="text-xs text-slate-400">{item.notes}</p>
                 ) : null}
               </li>
             ))}
@@ -80,46 +136,38 @@ export function WordDetailView({ detail }: WordDetailProps) {
         </section>
       ) : null}
 
-      {phrases && phrases.length > 0 ? (
+      {phrases.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">短语</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
             {phrases.map((item, index) => (
               <li key={index}>
-                <p className="font-medium text-white">
-                  {'pContent' in item ? item.pContent : item.phrase}
-                </p>
-                <p className="mt-1 text-slate-400">
-                  {'pCn' in item ? item.pCn : item.meaning}
-                </p>
+                <p className="font-medium text-white">{item.phrase}</p>
+                {item.meaning ? (
+                  <p className="mt-1 text-slate-400">{item.meaning}</p>
+                ) : null}
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      {relWords && relWords.length > 0 ? (
+      {relWords.length > 0 ? (
         <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6">
           <h2 className="text-sm uppercase tracking-[0.4em] text-emerald-300/80">同根词</h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
             {relWords.map((item, index) => (
-              <li key={index}>
-                {item.pos ? (
-                  <p className="text-emerald-200/80">{item.pos}</p>
-                ) : null}
+              <li key={index} className="space-y-2">
+                {item.pos ? <p className="text-emerald-200/80">{item.pos}</p> : null}
                 <ul className="mt-1 flex flex-wrap gap-2 text-slate-300">
-                  {('words' in item ? item.words : []).map((word) => (
+                  {item.words.map((word) => (
                     <li
-                      key={`${'hwd' in word ? word.hwd : word.headWord}-${'tran' in word ? word.tran : word.tranCn}`}
+                      key={`${word.head}-${word.meaning ?? ''}`}
                       className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
                     >
-                      <span className="mr-2 text-white">
-                        {'hwd' in word ? word.hwd : word.headWord}
-                      </span>
-                      {('tran' in word ? word.tran : word.tranCn) ? (
-                        <span className="text-xs text-slate-400">
-                          {'tran' in word ? word.tran : word.tranCn}
-                        </span>
+                      <span className="mr-2 text-white">{word.head}</span>
+                      {word.meaning ? (
+                        <span className="text-xs text-slate-400">{word.meaning}</span>
                       ) : null}
                     </li>
                   ))}
