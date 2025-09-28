@@ -1,5 +1,7 @@
 'use client';
 
+import { useCallback } from 'react';
+
 import type { WordDetail } from '../types';
 
 type WordCardProps = {
@@ -60,6 +62,20 @@ export function WordCard({ total, currentIndex, detail, onWordClick }: WordCardP
 
   const ukphone = content?.ukphone ?? detail.ukphone;
   const usphone = content?.usphone ?? detail.usphone;
+  const playPronunciation = useCallback(
+    (variant: 'uk' | 'us') => {
+      const word = detail.wordHead;
+      if (!word) return;
+      const type = variant === 'uk' ? 1 : 2;
+      const audio = new Audio(
+        `https://dict.youdao.com/dictvoice?type=${type}&audio=${encodeURIComponent(word)}`
+      );
+      audio.play().catch(() => {
+        // Ignore playback errors silently
+      });
+    },
+    [detail.wordHead]
+  );
   const progressPercent = total > 0 ? Math.round(((currentIndex + 1) / total) * 100) : 0;
 
   return (
@@ -88,9 +104,49 @@ export function WordCard({ total, currentIndex, detail, onWordClick }: WordCardP
           >
             {detail.wordHead}
           </button>
-          <div className="flex flex-wrap gap-4 text-sm text-emerald-200/90">
-            {ukphone ? <span>UK /{ukphone}/</span> : null}
-            {usphone ? <span>US /{usphone}/</span> : null}
+          <div className="flex flex-wrap gap-3 text-sm text-emerald-200/90">
+            {ukphone ? (
+              <button
+                type="button"
+                onClick={() => playPronunciation('uk')}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-emerald-200 transition hover:border-emerald-300/70 hover:text-emerald-100 focus:outline-none"
+                aria-label={`播放英式发音 ${detail.wordHead}`}
+              >
+                <span>UK /{ukphone}/</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </button>
+            ) : null}
+            {usphone ? (
+              <button
+                type="button"
+                onClick={() => playPronunciation('us')}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-emerald-200 transition hover:border-emerald-300/70 hover:text-emerald-100 focus:outline-none"
+                aria-label={`播放美式发音 ${detail.wordHead}`}
+              >
+                <span>US /{usphone}/</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </button>
+            ) : null}
           </div>
         </div>
 
