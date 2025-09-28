@@ -44,7 +44,7 @@ export default function LearnPage() {
 
   useEffect(() => {
     const title = book ? book.title : '单词学习';
-    setHeader({ title, canGoBack: true, visible: true });
+    setHeader({ title, canGoBack: true, visible: true, showBottomNav: false });
     return () => resetHeader();
   }, [book, resetHeader, setHeader]);
 
@@ -162,18 +162,8 @@ export default function LearnPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-10">
-      <header className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.4em] text-emerald-200/70">
-          单词学习
-        </p>
-        <h1 className="text-2xl font-semibold text-white">{book.title}</h1>
-        <p className="text-sm text-slate-400">
-          共 {totalWords} 个单词，当前进度 {currentIndex + 1} / {totalWords}
-        </p>
-      </header>
+    <div className="flex flex-1 flex-col justify-center">
       <WordCard
-        bookTitle={book.title}
         total={totalWords}
         currentIndex={currentIndex}
         detail={detail}

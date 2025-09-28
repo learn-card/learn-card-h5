@@ -18,6 +18,7 @@ type HeaderState = {
   title: string;
   canGoBack: boolean;
   visible: boolean;
+  showBottomNav: boolean;
 };
 
 type HeaderContextValue = {
@@ -31,18 +32,18 @@ const HeaderContext = createContext<HeaderContextValue | null>(null);
 function resolveDefaultHeader(pathname: string | null): HeaderState {
   const path = pathname ?? '/';
   if (path === '/' || path === '/(app)' || path === '/(app)/') {
-    return { title: '学习卡片', canGoBack: false, visible: true };
+    return { title: '学习卡片', canGoBack: false, visible: true, showBottomNav: true };
   }
   if (path.startsWith('/learn/') && path.includes('/word/')) {
-    return { title: '单词详情', canGoBack: true, visible: true };
+    return { title: '单词详情', canGoBack: true, visible: true, showBottomNav: true };
   }
   if (path.startsWith('/learn/')) {
-    return { title: '单词学习', canGoBack: true, visible: true };
+    return { title: '单词学习', canGoBack: true, visible: true, showBottomNav: true };
   }
   if (path.startsWith('/my')) {
-    return { title: '我的学习', canGoBack: true, visible: true };
+    return { title: '我的学习', canGoBack: true, visible: true, showBottomNav: true };
   }
-  return { title: '学习卡片', canGoBack: true, visible: true };
+  return { title: '学习卡片', canGoBack: true, visible: true, showBottomNav: true };
 }
 
 export function useAppHeader() {
@@ -121,13 +122,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
         ) : null}
         <main
-          className={`mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 pb-24 ${
+          className={`mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 ${
             header.visible ? 'pt-8' : 'pt-10'
-          }`}
+          } ${header.showBottomNav ? 'pb-24' : 'pb-12'}`}
         >
           {children}
         </main>
-        <BottomNav />
+        {header.showBottomNav ? <BottomNav /> : null}
         <AuthModal />
       </div>
     </HeaderContext.Provider>

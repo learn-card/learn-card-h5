@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 import { WordDetailView } from '../../../../../components/word-detail';
 import { useAppHeader } from '../../../../../components/app-shell';
@@ -10,7 +10,6 @@ import type { WordDetail } from '../../../../../types';
 
 export default function WordDetailPage() {
   const params = useParams<{ bookId: string; wordRank: string }>();
-  const router = useRouter();
   const { setHeader, resetHeader } = useAppHeader();
 
   const { books, getWordsForBook } = useAppState();
@@ -36,7 +35,7 @@ export default function WordDetailPage() {
   useEffect(() => {
     const fallbackTitle = book ? `${book.title} · 单词详情` : '单词详情';
     const title = detail?.wordHead ? `${detail.wordHead} · 单词详情` : fallbackTitle;
-    setHeader({ title, canGoBack: true, visible: true });
+    setHeader({ title, canGoBack: true, visible: true, showBottomNav: false });
     return () => resetHeader();
   }, [book, detail, resetHeader, setHeader]);
 
@@ -72,14 +71,8 @@ export default function WordDetailPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <header>
-        <p className="text-sm uppercase tracking-[0.4em] text-emerald-200/70">
-          {book.title}
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold text-white">单词详情</h1>
-      </header>
-      <WordDetailView detail={detail} onBack={() => router.back()} />
+    <div className="flex flex-1 flex-col justify-center">
+      <WordDetailView detail={detail} />
     </div>
   );
 }

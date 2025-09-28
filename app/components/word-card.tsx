@@ -3,7 +3,6 @@
 import type { WordDetail } from '../types';
 
 type WordCardProps = {
-  bookTitle: string;
   total: number;
   currentIndex: number;
   detail: WordDetail;
@@ -15,7 +14,6 @@ type WordCardProps = {
 };
 
 export function WordCard({
-  bookTitle,
   total,
   currentIndex,
   detail,
@@ -64,25 +62,33 @@ export function WordCard({
   
   // 例句信息：优先使用content字段
   const firstSentence = contentSentences?.[0] || detail.sentences?.[0];
+  const progressPercent = total > 0 ? Math.round(((currentIndex + 1) / total) * 100) : 0;
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-200">{bookTitle}</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            进度 {currentIndex + 1} / {total}
-          </p>
+      <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/10 p-8 shadow-xl shadow-emerald-500/10">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>学习进度</span>
+            <span>
+              {currentIndex + 1} / {total}
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-teal-400"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
-        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.4em] text-emerald-200">
-          LEARN
-        </span>
-      </div>
-      <div
-        className="rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/10 p-8 shadow-xl shadow-emerald-500/10 transition hover:shadow-emerald-500/20"
-        onClick={onViewDetail}
-      >
-        <div className="flex items-baseline gap-4">
-          <span className="text-4xl font-bold text-white">{detail.wordHead}</span>
+        <div className="mt-8 flex items-baseline gap-4">
+          <button
+            type="button"
+            onClick={onViewDetail}
+            className="text-left text-4xl font-bold text-white transition hover:text-emerald-200 focus:outline-none"
+          >
+            {detail.wordHead}
+          </button>
           <div className="flex flex-wrap items-center gap-3 text-sm text-emerald-200/90">
             {ukphone ? (
               <span>UK /{ukphone}/</span>
@@ -135,7 +141,7 @@ export function WordCard({
           </div>
         ) : null}
         {phraseHighlights.length > 0 ? (
-          <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-sm text-slate-200">
+          <div className="mt-6 space-y-3 rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-sm text-slate-200">
             {phraseHighlights.map((item, index) => (
               <div key={`${item.phrase}-${index}`}>
                 <p className="font-medium text-white">{item.phrase}</p>
@@ -146,9 +152,6 @@ export function WordCard({
             ))}
           </div>
         ) : null}
-        <p className="mt-6 text-xs uppercase tracking-[0.4em] text-slate-500">
-          点击查看详情
-        </p>
       </div>
       <div className="flex items-center justify-between">
         <button
@@ -169,12 +172,6 @@ export function WordCard({
             <path d="m12 19-7-7 7-7" />
           </svg>
           上一个
-        </button>
-        <button
-          onClick={onViewDetail}
-          className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-6 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
-        >
-          查看详情
         </button>
         <button
           onClick={onNext}

@@ -4,10 +4,9 @@ import type { WordDetail } from '../types';
 
 type WordDetailProps = {
   detail: WordDetail;
-  onBack: () => void;
 };
 
-export function WordDetailView({ detail, onBack }: WordDetailProps) {
+export function WordDetailView({ detail }: WordDetailProps) {
   // 优先使用content字段的数据
   const contentTrans = detail.content?.trans;
   const contentSyno = detail.content?.syno;
@@ -35,32 +34,12 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
   const sentences = contentSentences?.sentences || detail.sentences || [];
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">{detail.wordHead}</h1>
-          <div className="mt-2 flex flex-wrap gap-4 text-sm text-emerald-200/90">
-            {ukphone ? <span>UK /{ukphone}/</span> : null}
-            {usphone ? <span>US /{usphone}/</span> : null}
-          </div>
+      <header className="flex flex-col gap-3">
+        <h1 className="text-3xl font-bold text-white">{detail.wordHead}</h1>
+        <div className="flex flex-wrap gap-4 text-sm text-emerald-200/90">
+          {ukphone ? <span>UK /{ukphone}/</span> : null}
+          {usphone ? <span>US /{usphone}/</span> : null}
         </div>
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-emerald-300/40"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 12H5" />
-            <path d="m12 19-7-7 7-7" />
-          </svg>
-          返回卡片
-        </button>
       </header>
 
       <section className="rounded-3xl border border-white/5 bg-slate-900/70 p-6 shadow-lg shadow-emerald-500/10">
