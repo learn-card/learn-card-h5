@@ -34,7 +34,7 @@
     }
   ],
   "env": {
-    "POSTGRES_URL": "@postgres_url",
-    "AUTH_SECRET": "@auth_secret"
+    "POSTGRES_URL": "@POSTGRES_URL",
+    "AUTH_SECRET": "@AUTH_SECRET"
   }
 }
