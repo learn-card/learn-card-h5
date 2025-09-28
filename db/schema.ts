@@ -1,6 +1,5 @@
 import {
   check,
-  foreignKey,
   index,
   integer,
   json,
@@ -73,8 +72,18 @@ export const userBookProgress = pgTable(
   'user_book_progress',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: integer('user_id').notNull(),
-    bookId: varchar('book_id', { length: 128 }).notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
+    bookId: varchar('book_id', { length: 128 })
+      .notNull()
+      .references(() => books.bookId, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
     lastIndex: integer('last_index').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -97,20 +106,6 @@ export const userBookProgress = pgTable(
       'ubp_last_index_nonneg',
       sql`${table.lastIndex} >= 0`
     ),
-    userFk: foreignKey({
-      name: 'ubp_user_fk',
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
-    bookFk: foreignKey({
-      name: 'ubp_book_fk',
-      columns: [table.bookId],
-      foreignColumns: [books.bookId],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
   })
 )
 
@@ -118,8 +113,18 @@ export const userWordProgress = pgTable(
   'user_word_progress',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: integer('user_id').notNull(),
-    bookId: varchar('book_id', { length: 128 }).notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
+    bookId: varchar('book_id', { length: 128 })
+      .notNull()
+      .references(() => books.bookId, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
     wordRank: integer('word_rank').notNull(),
     status: wordStatusEnum('status').notNull().default('learning'),
     exposures: integer('exposures').notNull().default(0),
@@ -146,20 +151,6 @@ export const userWordProgress = pgTable(
     userStatusIdx: index('idx_uwp_user_status').on(table.userId, table.status),
     dueIdx: index('idx_uwp_due').on(table.userId, table.dueAt),
     wordRankCheck: check('uwp_word_positive', sql`${table.wordRank} > 0`),
-    userFk: foreignKey({
-      name: 'uwp_user_fk',
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
-    bookFk: foreignKey({
-      name: 'uwp_book_fk',
-      columns: [table.bookId],
-      foreignColumns: [books.bookId],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
   })
 )
 
@@ -167,8 +158,18 @@ export const learningSessions = pgTable(
   'learning_sessions',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: integer('user_id').notNull(),
-    bookId: varchar('book_id', { length: 128 }).notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
+    bookId: varchar('book_id', { length: 128 })
+      .notNull()
+      .references(() => books.bookId, {
+        onDelete: 'cascade',
+        onUpdate: 'cascade',
+      }),
     startedAt: timestamp('started_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -180,20 +181,6 @@ export const learningSessions = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    userFk: foreignKey({
-      name: 'ls_user_fk',
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
-    bookFk: foreignKey({
-      name: 'ls_book_fk',
-      columns: [table.bookId],
-      foreignColumns: [books.bookId],
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    }),
     userStartedIdx: index('idx_ls_user_started').on(
       table.userId,
       table.startedAt.desc()
@@ -205,8 +192,14 @@ export const events = pgTable(
   'events',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id'),
-    bookId: varchar('book_id', { length: 128 }),
+    userId: integer('user_id').references(() => users.id, {
+      onDelete: 'set null',
+      onUpdate: 'cascade',
+    }),
+    bookId: varchar('book_id', { length: 128 }).references(() => books.bookId, {
+      onDelete: 'set null',
+      onUpdate: 'cascade',
+    }),
     eventType: varchar('event_type', { length: 64 }).notNull(),
     wordRank: integer('word_rank'),
     payload: jsonb('payload'),
@@ -215,20 +208,6 @@ export const events = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    userFk: foreignKey({
-      name: 'events_user_fk',
-      columns: [table.userId],
-      foreignColumns: [users.id],
-      onDelete: 'set null',
-      onUpdate: 'cascade',
-    }),
-    bookFk: foreignKey({
-      name: 'events_book_fk',
-      columns: [table.bookId],
-      foreignColumns: [books.bookId],
-      onDelete: 'set null',
-      onUpdate: 'cascade',
-    }),
     userTimeIdx: index('idx_events_user_time').on(
       table.userId,
       table.createdAt.desc()
