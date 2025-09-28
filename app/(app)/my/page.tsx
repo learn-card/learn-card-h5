@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { BookCard } from '../../components/book-card';
@@ -8,7 +8,39 @@ import { useAppHeader } from '../../components/app-shell';
 import { LoadingSpinner, Skeleton } from '../../components/loading-placeholder';
 import { useAppState } from '../../providers';
 
-export default function ProfilePage() {
+function ProfilePageSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col gap-10">
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <LoadingSpinner size="sm" />
+          <span>账号信息加载中…</span>
+        </div>
+        <Skeleton className="h-8 w-40" />
+        <div className="flex flex-wrap gap-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+        <Skeleton className="h-9 w-32" />
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="grid gap-5 justify-items-center sm:grid-cols-2">
+          {[0, 1].map((item) => (
+            <Skeleton key={item} className="h-48 w-full max-w-sm rounded-3xl" />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setHeader, resetHeader } = useAppHeader();
@@ -48,37 +80,8 @@ export default function ProfilePage() {
   const handleContinue = (bookId: string) => {
     router.push(`/learn/${bookId}`);
   };
-
   if (isLoadingUser) {
-    return (
-      <div className="flex flex-1 flex-col gap-10">
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <LoadingSpinner size="sm" />
-            <span>账号信息加载中…</span>
-          </div>
-          <Skeleton className="h-8 w-40" />
-          <div className="flex flex-wrap gap-3">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-4 w-36" />
-          </div>
-          <Skeleton className="h-9 w-32" />
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-4 w-16" />
-          </div>
-          <div className="grid gap-5 justify-items-center sm:grid-cols-2">
-            {[0, 1].map((item) => (
-              <Skeleton key={item} className="h-48 w-full max-w-sm rounded-3xl" />
-            ))}
-          </div>
-        </section>
-      </div>
-    );
+    return <ProfilePageSkeleton />;
   }
 
   if (!isLoggedIn || !user) {
@@ -155,5 +158,13 @@ export default function ProfilePage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<ProfilePageSkeleton />}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
