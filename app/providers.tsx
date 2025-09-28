@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import { signOut as nextAuthSignOut } from 'next-auth/react'
+import { getSession, signOut as nextAuthSignOut } from 'next-auth/react'
 
 import { signInWithCredentials } from '@/lib/auth-client'
 
@@ -31,6 +31,7 @@ type AuthModalState = {
   targetBookId?: string
   redirectTo?: string
   message?: string
+  isSubmitting: boolean
 }
 
 type LoginPayload = {
@@ -180,6 +181,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [authModal, setAuthModal] = useState<AuthModalState>({
     open: false,
     mode: 'login',
+    isSubmitting: false,
   })
   const authModalRef = useRef(authModal)
   const [progressMap, setProgressMap] = useState<Record<string, UserProgress>>(
@@ -215,6 +217,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       targetBookId: undefined,
       redirectTo: undefined,
       message: undefined,
+      isSubmitting: false,
     })
   }, [])
 
@@ -317,6 +320,26 @@ export function AppProviders({ children }: { children: ReactNode }) {
     []
   )
 
+  useEffect(() => {
+    let isMounted = true
+    getSession()
+      .then((session) => {
+        if (!isMounted) return
+        const email = session?.user?.email
+        if (!email) return
+        fetchUserSummary(email).then((summary) => {
+          if (!isMounted) return
+          hydrateUser(summary)
+        })
+      })
+      .catch((error) => {
+        console.error('Failed to restore session', error)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [fetchUserSummary, hydrateUser])
+
   const handleAuthSuccess = useCallback(
     async (email: string) => {
       const modalState = authModalRef.current
@@ -335,7 +358,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   const authenticate = useCallback(
     async (email: string, password: string) => {
-      setAuthModal((prev) => ({ ...prev, message: undefined }))
+      setAuthModal((prev) => ({ ...prev, message: undefined, isSubmitting: true }))
       try {
         const result = await signInWithCredentials({
           email,
@@ -354,6 +377,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
               result.error === 'CredentialsSignin'
                 ? '邮箱或密码错误。'
                 : '登录失败，请稍后再试。',
+            isSubmitting: false,
           }))
           return false
         }
@@ -365,6 +389,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         setAuthModal((prev) => ({
           ...prev,
           message: '登录失败，请稍后再试。',
+          isSubmitting: false,
         }))
         return false
       }
@@ -378,6 +403,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         setAuthModal((prev) => ({
           ...prev,
           message: '请输入邮箱和密码。',
+          isSubmitting: false,
         }))
         return
       }
@@ -392,9 +418,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
         setAuthModal((prev) => ({
           ...prev,
           message: '请填写邮箱和密码完成注册。',
+          isSubmitting: false,
         }))
         return
       }
+      setAuthModal((prev) => ({ ...prev, isSubmitting: true, message: undefined }))
       try {
         const response = await fetch('/api/auth/register', {
           method: 'POST',
@@ -408,6 +436,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           setAuthModal((prev) => ({
             ...prev,
             message: payload.error ?? '注册失败，请稍后再试。',
+            isSubmitting: false,
           }))
           return
         }
@@ -416,6 +445,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         setAuthModal((prev) => ({
           ...prev,
           message: '注册失败，请稍后再试。',
+          isSubmitting: false,
         }))
         return
       }
@@ -439,6 +469,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       targetBookId: state?.targetBookId,
       redirectTo: state?.redirectTo,
       message: state?.message ?? undefined,
+      isSubmitting: false,
     }))
   }, [])
 
@@ -447,6 +478,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       ...prev,
       mode,
       message: undefined,
+      isSubmitting: false,
     }))
   }, [])
 

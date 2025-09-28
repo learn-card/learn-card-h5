@@ -70,6 +70,7 @@ export function AuthModal() {
                 onChange={(event) => setEmail(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
                 placeholder="you@example.com"
+                disabled={authModal.isSubmitting}
                 required
               />
             </label>
@@ -81,6 +82,7 @@ export function AuthModal() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
                 placeholder="至少 6 位密码"
+                disabled={authModal.isSubmitting}
                 required
               />
             </label>
@@ -89,9 +91,10 @@ export function AuthModal() {
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:brightness-105"
+              disabled={authModal.isSubmitting}
+              className="w-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              注册并登录
+              {authModal.isSubmitting ? '处理中…' : '注册并登录'}
             </button>
           </form>
         ) : (
@@ -104,6 +107,7 @@ export function AuthModal() {
                 onChange={(event) => setEmail(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
                 placeholder="you@example.com"
+                disabled={authModal.isSubmitting}
                 required
               />
             </label>
@@ -115,6 +119,7 @@ export function AuthModal() {
                 onChange={(event) => setPassword(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
                 placeholder="请输入密码"
+                disabled={authModal.isSubmitting}
                 required
               />
             </label>
@@ -123,9 +128,10 @@ export function AuthModal() {
             ) : null}
             <button
               type="submit"
-              className="w-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:brightness-105"
+              disabled={authModal.isSubmitting}
+              className="w-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              立即登录
+              {authModal.isSubmitting ? '处理中…' : '立即登录'}
             </button>
           </form>
         )}

@@ -67,15 +67,6 @@ export function BookCard({
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20" />
-        {progress?.updatedAt ? (
-          <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-black/50 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-emerald-200">
-            最近{' '}
-            {new Intl.DateTimeFormat('zh-CN', {
-              month: 'numeric',
-              day: 'numeric',
-            }).format(new Date(progress.updatedAt))}
-          </span>
-        ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
