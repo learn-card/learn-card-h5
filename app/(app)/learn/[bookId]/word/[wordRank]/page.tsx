@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { WordDetailView } from '../../../../../components/word-detail';
+import { useAppHeader } from '../../../../../components/app-shell';
 import { useAppState } from '../../../../../providers';
 import type { WordDetail } from '../../../../../types';
 
 export default function WordDetailPage() {
   const params = useParams<{ bookId: string; wordRank: string }>();
   const router = useRouter();
+  const { setHeader, resetHeader } = useAppHeader();
 
   const { books, getWordsForBook } = useAppState();
 
@@ -30,6 +32,13 @@ export default function WordDetailPage() {
       setIsLoading(false);
     });
   }, [getWordsForBook, params.bookId, wordRank]);
+
+  useEffect(() => {
+    const fallbackTitle = book ? `${book.title} · 单词详情` : '单词详情';
+    const title = detail?.wordHead ? `${detail.wordHead} · 单词详情` : fallbackTitle;
+    setHeader({ title, canGoBack: true, visible: true });
+    return () => resetHeader();
+  }, [book, detail, resetHeader, setHeader]);
 
   if (!book) {
     if (isLoading) {

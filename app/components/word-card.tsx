@@ -25,7 +25,17 @@ export function WordCard({
   disablePrev,
   disableNext,
 }: WordCardProps) {
-  const primaryTrans = detail.trans?.[0];
+  const translations = detail.trans ?? [];
+  const primaryTrans = translations[0];
+  const extraTranslations = translations.slice(1, 3);
+  const synonymChips = Array.from(
+    new Set(
+      (detail.syno ?? [])
+        .flatMap((item) => item.hwds)
+        .filter((item): item is string => Boolean(item && item.trim().length > 0))
+    )
+  ).slice(0, 4);
+  const phraseHighlights = (detail.phrase ?? []).slice(0, 2);
   const firstSentence = detail.sentences?.[0];
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +69,23 @@ export function WordCard({
           <p className="mt-6 text-lg text-slate-200">
             {primaryTrans.pos ? <span className="mr-2 text-emerald-300">{primaryTrans.pos}</span> : null}
             {primaryTrans.tranCn}
+            {primaryTrans.tranOther ? (
+              <span className="ml-2 text-sm text-slate-400">{primaryTrans.tranOther}</span>
+            ) : null}
           </p>
+        ) : null}
+        {extraTranslations.length > 0 ? (
+          <ul className="mt-4 space-y-1 text-sm text-slate-300/90">
+            {extraTranslations.map((item, index) => (
+              <li key={index} className="leading-relaxed">
+                {item.pos ? <span className="mr-2 text-emerald-300/80">{item.pos}</span> : null}
+                <span>{item.tranCn}</span>
+                {item.tranOther ? (
+                  <span className="ml-2 text-xs text-slate-500">{item.tranOther}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         ) : null}
         {firstSentence ? (
           <p className="mt-4 text-sm text-slate-400">
@@ -68,6 +94,30 @@ export function WordCard({
               <span className="ml-2 text-slate-500">{firstSentence.sCn}</span>
             ) : null}
           </p>
+        ) : null}
+        {synonymChips.length > 0 ? (
+          <div className="mt-5 flex flex-wrap gap-2 text-xs text-emerald-200/80">
+            {synonymChips.map((word) => (
+              <span
+                key={word}
+                className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1"
+              >
+                {word}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {phraseHighlights.length > 0 ? (
+          <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-sm text-slate-200">
+            {phraseHighlights.map((item, index) => (
+              <div key={`${item.phrase}-${index}`}>
+                <p className="font-medium text-white">{item.phrase}</p>
+                {item.meaning ? (
+                  <p className="mt-1 text-xs text-slate-400">{item.meaning}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
         ) : null}
         <p className="mt-6 text-xs uppercase tracking-[0.4em] text-slate-500">
           点击查看详情

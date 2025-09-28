@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { WordCard } from '../../../components/word-card';
+import { useAppHeader } from '../../../components/app-shell';
 import { useAppState } from '../../../providers';
 import type { WordDetail } from '../../../types';
 
 export default function LearnPage() {
   const params = useParams<{ bookId: string }>();
   const router = useRouter();
+  const { setHeader, resetHeader } = useAppHeader();
   const {
     books,
     getWordsForBook,
@@ -41,6 +43,12 @@ export default function LearnPage() {
   }, [getWordsForBook, params.bookId]);
 
   useEffect(() => {
+    const title = book ? book.title : '单词学习';
+    setHeader({ title, canGoBack: true, visible: true });
+    return () => resetHeader();
+  }, [book, resetHeader, setHeader]);
+
+  useEffect(() => {
     setInitialised(false);
   }, [isLoggedIn]);
 
@@ -48,9 +56,13 @@ export default function LearnPage() {
     if (initialised) return;
     if (totalWords === 0) return;
     const saved = isLoggedIn ? userProgress[params.bookId] : undefined;
-    const nextIndex = saved
-      ? Math.min(saved.lastIndex + 1, Math.max(totalWords - 1, 0))
-      : 0;
+    const savedIndex =
+      typeof saved?.lastIndex === 'number'
+        ? saved.lastIndex
+        : saved
+        ? Math.max((saved.learnedWords ?? 1) - 1, 0)
+        : 0;
+    const nextIndex = Math.min(savedIndex, Math.max(totalWords - 1, 0));
     setCurrentIndex(nextIndex);
     setInitialised(true);
   }, [initialised, isLoggedIn, params.bookId, totalWords, userProgress]);

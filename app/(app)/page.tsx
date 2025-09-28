@@ -1,14 +1,28 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BookCard } from '../components/book-card';
+import { useAppHeader } from '../components/app-shell';
 import { useAppState } from '../providers';
 
 export default function HomePage() {
   const router = useRouter();
-  const { books, isLoadingBooks, isLoggedIn, user, openAuthModal } = useAppState();
+  const { setHeader, resetHeader } = useAppHeader();
+  const {
+    books,
+    isLoadingBooks,
+    isLoggedIn,
+    user,
+    userProgress,
+    openAuthModal,
+  } = useAppState();
+
+  useEffect(() => {
+    setHeader({ title: '学习卡片', canGoBack: false, visible: true });
+    return () => resetHeader();
+  }, [resetHeader, setHeader]);
 
   const recentBooks = useMemo(() => {
     if (!isLoggedIn || !user) return [];
@@ -87,7 +101,11 @@ export default function HomePage() {
           </span>
         </div>
         <div className="grid gap-5 justify-items-center sm:grid-cols-2">
-          {books.map((book) => (
+          {books.map((book) => {
+            const progress = isLoggedIn
+              ? userProgress[book.bookId]
+              : undefined;
+            return (
             <BookCard
               key={book.bookId}
               title={book.title}
@@ -95,11 +113,13 @@ export default function HomePage() {
               coverUrl={book.coverUrl ?? ''}
               wordsCount={book.wordsCount}
               tags={book.tags ?? []}
+              progress={progress ? { ...progress, wordsCount: book.wordsCount } : undefined}
               actionLabel={isLoggedIn ? '开始学习' : '登录后学习'}
               secondaryLabel={isLoggedIn ? undefined : '点击后将提示登录'}
               onAction={() => handleBookSelect(book.bookId)}
             />
-          ))}
+            );
+          })}
           {!isLoadingBooks && books.length === 0 ? (
             <div className="col-span-full rounded-3xl border border-white/5 bg-slate-900/50 p-6 text-sm text-slate-300">
               暂无单词书数据，请稍后再试。

@@ -12,21 +12,21 @@ export type WordSentence = {
 };
 
 export type WordSynonym = {
-  pos: string;
-  tran: string;
+  pos?: string;
+  tran?: string;
   hwds: string[];
 };
 
 export type WordPhrase = {
   phrase: string;
-  meaning: string;
+  meaning?: string;
 };
 
 export type WordRel = {
-  pos: string;
+  pos?: string;
   words: {
     headWord: string;
-    tranCn: string;
+    tranCn?: string;
   }[];
 };
 

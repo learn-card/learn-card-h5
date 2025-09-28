@@ -59,9 +59,15 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
             {detail.syno.map((item, index) => (
               <li key={index}>
-                <p className="text-emerald-200/90">{item.pos}</p>
-                <p className="mt-1 text-slate-200">{item.hwds.join(' / ')}</p>
-                <p className="mt-1 text-xs text-slate-400">{item.tran}</p>
+                {item.pos ? (
+                  <p className="text-emerald-200/90">{item.pos}</p>
+                ) : null}
+                {item.hwds.length > 0 ? (
+                  <p className="mt-1 text-slate-200">{item.hwds.join(' / ')}</p>
+                ) : null}
+                {item.tran ? (
+                  <p className="mt-1 text-xs text-slate-400">{item.tran}</p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -88,7 +94,9 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
           <ul className="mt-4 space-y-3 text-sm text-slate-200">
             {detail.relWord.map((item, index) => (
               <li key={index}>
-                <p className="text-emerald-200/80">{item.pos}</p>
+                {item.pos ? (
+                  <p className="text-emerald-200/80">{item.pos}</p>
+                ) : null}
                 <ul className="mt-1 flex flex-wrap gap-2 text-slate-300">
                   {item.words.map((word) => (
                     <li
@@ -96,7 +104,9 @@ export function WordDetailView({ detail, onBack }: WordDetailProps) {
                       className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
                     >
                       <span className="mr-2 text-white">{word.headWord}</span>
-                      <span className="text-xs text-slate-400">{word.tranCn}</span>
+                      {word.tranCn ? (
+                        <span className="text-xs text-slate-400">{word.tranCn}</span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

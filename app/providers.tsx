@@ -71,6 +71,106 @@ function createProgressMap(
   }, {})
 }
 
+const PROGRESS_STORAGE_PREFIX = 'learn-card-progress:'
+
+function getProgressStorageKey(userId: string) {
+  return `${PROGRESS_STORAGE_PREFIX}${userId}`
+}
+
+function readPersistedProgress(
+  userId: string
+): Record<string, UserProgress> | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(getProgressStorageKey(userId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Record<string, UserProgress>
+    if (!parsed || typeof parsed !== 'object') return null
+    return Object.entries(parsed).reduce<Record<string, UserProgress>>(
+      (acc, [bookId, value]) => {
+        if (value) {
+          acc[bookId] = value
+        }
+        return acc
+      },
+      {}
+    )
+  } catch (error) {
+    console.warn('Failed to read stored progress', error)
+    return null
+  }
+}
+
+function persistProgressMap(
+  userId: string,
+  map: Record<string, UserProgress>
+) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      getProgressStorageKey(userId),
+      JSON.stringify(map)
+    )
+  } catch (error) {
+    console.warn('Failed to persist progress', error)
+  }
+}
+
+function clearPersistedProgress(userId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(getProgressStorageKey(userId))
+  } catch (error) {
+    console.warn('Failed to clear stored progress', error)
+  }
+}
+
+function mergeProgressRecords(
+  primary: Record<string, UserProgress>,
+  fallback: Record<string, UserProgress>
+) {
+  const merged: Record<string, UserProgress> = { ...primary }
+  Object.entries(fallback).forEach(([bookId, localEntry]) => {
+    if (!localEntry) return
+    const existing = merged[bookId]
+    if (!existing) {
+      merged[bookId] = { ...localEntry }
+      return
+    }
+
+    const existingTime = Date.parse(existing.updatedAt ?? '')
+    const localTime = Date.parse(localEntry.updatedAt ?? '')
+    const safeExistingTime = Number.isFinite(existingTime) ? existingTime : 0
+    const safeLocalTime = Number.isFinite(localTime) ? localTime : 0
+    const existingWords =
+      existing.learnedWords ?? Math.max((existing.lastIndex ?? -1) + 1, 0)
+    const localWords =
+      localEntry.learnedWords ?? Math.max((localEntry.lastIndex ?? -1) + 1, 0)
+
+    const shouldReplace =
+      safeLocalTime > safeExistingTime ||
+      (safeLocalTime === safeExistingTime && localWords > existingWords)
+
+    if (shouldReplace) {
+      merged[bookId] = { ...existing, ...localEntry }
+    }
+  })
+  return merged
+}
+
+function sortProgressEntries(map: Record<string, UserProgress>): UserProgress[] {
+  return Object.values(map).sort((a, b) => {
+    const timeA = Date.parse(a.updatedAt ?? '')
+    const timeB = Date.parse(b.updatedAt ?? '')
+    const safeTimeA = Number.isFinite(timeA) ? timeA : 0
+    const safeTimeB = Number.isFinite(timeB) ? timeB : 0
+    if (safeTimeA !== safeTimeB) {
+      return safeTimeB - safeTimeA
+    }
+    return (b.learnedWords ?? 0) - (a.learnedWords ?? 0)
+  })
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [books, setBooks] = useState<Book[]>([])
@@ -85,6 +185,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [progressMap, setProgressMap] = useState<Record<string, UserProgress>>(
     {}
   )
+  const currentUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     authModalRef.current = authModal
@@ -118,9 +219,60 @@ export function AppProviders({ children }: { children: ReactNode }) {
   }, [])
 
   const hydrateUser = useCallback((summary: UserSummary | null) => {
-    setUser(summary)
-    setProgressMap(createProgressMap(summary))
+    if (!summary) {
+      currentUserIdRef.current = null
+      setUser(null)
+      setProgressMap({})
+      return
+    }
+
+    let nextMap = createProgressMap(summary)
+
+    if (typeof window !== 'undefined') {
+      const storedForId = readPersistedProgress(summary.id)
+      const storedForEmail =
+        summary.email && summary.email !== summary.id
+          ? readPersistedProgress(summary.email)
+          : null
+      const storedMap = storedForId ?? storedForEmail ?? {}
+      nextMap = mergeProgressRecords(nextMap, storedMap)
+      persistProgressMap(summary.id, nextMap)
+      if (!storedForId && storedForEmail && summary.email !== summary.id) {
+        clearPersistedProgress(summary.email)
+      }
+    }
+
+    const progressList = sortProgressEntries(nextMap)
+    const learnedBooks = progressList.length
+    const learnedWords = progressList.reduce(
+      (sum, item) => sum + (item.learnedWords ?? 0),
+      0
+    )
+
+    const nextSummary: UserSummary = {
+      ...summary,
+      progress: progressList,
+      learnedBooks,
+      learnedWords,
+    }
+
+    currentUserIdRef.current = nextSummary.id
+    setUser(nextSummary)
+    setProgressMap(nextMap)
   }, [])
+
+  useEffect(() => {
+    currentUserIdRef.current = user?.id ?? null
+  }, [user])
+
+  const persistProgressForUser = useCallback(
+    (map: Record<string, UserProgress>) => {
+      const userId = currentUserIdRef.current
+      if (!userId) return
+      persistProgressMap(userId, map)
+    },
+    []
+  )
 
   const fetchUserSummary = useCallback(
     async (email: string): Promise<UserSummary> => {
@@ -303,7 +455,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       let nextEntry: UserProgress | undefined
       setProgressMap((prev) => {
         nextEntry = builder(prev[bookId])
-        return { ...prev, [bookId]: nextEntry! }
+        const nextMap = { ...prev, [bookId]: nextEntry! }
+        persistProgressForUser(nextMap)
+        return nextMap
       })
       setUser((prev) => {
         if (!prev || !nextEntry) return prev
@@ -324,7 +478,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         }
       })
     },
-    []
+    [persistProgressForUser]
   )
 
   const getWordsForBook = useCallback(

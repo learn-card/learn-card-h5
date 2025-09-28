@@ -4,15 +4,22 @@ import { useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { BookCard } from '../../components/book-card';
+import { useAppHeader } from '../../components/app-shell';
 import { useAppState } from '../../providers';
 
 export default function ProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setHeader, resetHeader } = useAppHeader();
   const { books, isLoggedIn, user, logout, openAuthModal } = useAppState();
 
   const authIntent = searchParams.get('auth');
   const targetBook = searchParams.get('book');
+
+  useEffect(() => {
+    setHeader({ title: '我的学习', canGoBack: false, visible: false });
+    return () => resetHeader();
+  }, [resetHeader, setHeader]);
 
   useEffect(() => {
     if (!isLoggedIn && authIntent === '1') {
