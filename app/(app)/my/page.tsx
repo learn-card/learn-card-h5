@@ -8,6 +8,8 @@ import { useAppHeader } from '../../components/app-shell';
 import { LoadingSpinner, Skeleton } from '../../components/loading-placeholder';
 import { useAppState } from '../../providers';
 
+export const dynamic = 'force-dynamic';
+
 function ProfilePageSkeleton() {
   return (
     <div className="flex flex-1 flex-col gap-10">
