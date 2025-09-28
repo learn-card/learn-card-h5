@@ -45,6 +45,7 @@ type AppState = {
   reloadBooks: () => Promise<void>
   getWordsForBook: (bookId: string) => Promise<WordDetail[]>
   user: UserSummary | null
+  isLoadingUser: boolean
   isLoggedIn: boolean
   userProgress: Record<string, UserProgress>
   login: (payload: LoginPayload) => Promise<void>
@@ -178,6 +179,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [isLoadingBooks, setIsLoadingBooks] = useState<boolean>(true)
   const [wordsCache, setWordsCache] = useState<Record<string, WordDetail[]>>({})
   const [user, setUser] = useState<UserSummary | null>(null)
+  const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true)
   const [authModal, setAuthModal] = useState<AuthModalState>({
     open: false,
     mode: 'login',
@@ -322,19 +324,27 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true
-    getSession()
-      .then((session) => {
+    setIsLoadingUser(true)
+    ;(async () => {
+      try {
+        const session = await getSession()
         if (!isMounted) return
         const email = session?.user?.email
-        if (!email) return
-        fetchUserSummary(email).then((summary) => {
-          if (!isMounted) return
-          hydrateUser(summary)
-        })
-      })
-      .catch((error) => {
+        if (!email) {
+          hydrateUser(null)
+          return
+        }
+        const summary = await fetchUserSummary(email)
+        if (!isMounted) return
+        hydrateUser(summary)
+      } catch (error) {
         console.error('Failed to restore session', error)
-      })
+      } finally {
+        if (isMounted) {
+          setIsLoadingUser(false)
+        }
+      }
+    })()
     return () => {
       isMounted = false
     }
@@ -342,15 +352,20 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   const handleAuthSuccess = useCallback(
     async (email: string) => {
+      setIsLoadingUser(true)
       const modalState = authModalRef.current
       closeAuthModal()
-      const summary = await fetchUserSummary(email)
-      hydrateUser(summary)
-      const target =
-        modalState.redirectTo ||
-        (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null)
-      if (target) {
-        router.push(target)
+      try {
+        const summary = await fetchUserSummary(email)
+        hydrateUser(summary)
+        const target =
+          modalState.redirectTo ||
+          (modalState.targetBookId ? `/learn/${modalState.targetBookId}` : null)
+        if (target) {
+          router.push(target)
+        }
+      } finally {
+        setIsLoadingUser(false)
       }
     },
     [closeAuthModal, fetchUserSummary, hydrateUser, router]
@@ -460,6 +475,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       console.error('Failed to sign out', error)
     })
     hydrateUser(null)
+    setIsLoadingUser(false)
   }, [hydrateUser])
 
   const openAuthModal = useCallback((state?: Partial<AuthModalState>) => {
@@ -539,6 +555,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       reloadBooks: loadBooks,
       getWordsForBook,
       user,
+      isLoadingUser,
       isLoggedIn: Boolean(user),
       userProgress: progressMap,
       login,
@@ -556,6 +573,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       closeAuthModal,
       getWordsForBook,
       isLoadingBooks,
+      isLoadingUser,
       loadBooks,
       login,
       logout,

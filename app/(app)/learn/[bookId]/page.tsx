@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { WordCard } from '../../../components/word-card';
 import { useAppHeader } from '../../../components/app-shell';
+import { LoadingSpinner, Skeleton } from '../../../components/loading-placeholder';
 import { useAppState } from '../../../providers';
 import type { WordDetail } from '../../../types';
 
@@ -87,13 +88,26 @@ export default function LearnPage() {
     persistProgress(currentIndex);
   }, [currentIndex, initialised, isLoggedIn, persistProgress]);
 
+  const renderLoading = (message: string) => (
+    <div className="flex flex-1 flex-col items-center justify-center gap-8">
+      <div className="flex flex-col items-center gap-3 text-slate-300">
+        <LoadingSpinner />
+        <span className="text-sm text-slate-300/90">{message}</span>
+      </div>
+      <div className="w-full max-w-md space-y-4">
+        <Skeleton className="mx-auto h-6 w-24 rounded-full" />
+        <Skeleton className="h-52 rounded-3xl" />
+        <div className="flex gap-3">
+          <Skeleton className="h-10 flex-1 rounded-full" />
+          <Skeleton className="h-10 flex-1 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+
   if (!book) {
     if (isLoadingWords) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
-          正在加载单词书数据…
-        </div>
-      );
+      return renderLoading('单词书数据加载中…');
     }
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
@@ -103,11 +117,7 @@ export default function LearnPage() {
   }
 
   if (isLoadingWords) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
-        正在加载单词…
-      </div>
-    );
+    return renderLoading('单词加载中…');
   }
 
   if (totalWords === 0) {

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 
 import { WordDetailView } from '../../../../../components/word-detail';
 import { useAppHeader } from '../../../../../components/app-shell';
+import { LoadingSpinner, Skeleton } from '../../../../../components/loading-placeholder';
 import { useAppState } from '../../../../../providers';
 import type { WordDetail } from '../../../../../types';
 
@@ -39,13 +40,23 @@ export default function WordDetailPage() {
     return () => resetHeader();
   }, [book, detail, resetHeader, setHeader]);
 
+  const renderLoading = (message: string) => (
+    <div className="flex flex-1 flex-col items-center justify-center gap-8">
+      <div className="flex flex-col items-center gap-3 text-slate-300">
+        <LoadingSpinner />
+        <span className="text-sm text-slate-300/90">{message}</span>
+      </div>
+      <div className="w-full max-w-2xl space-y-4">
+        <Skeleton className="mx-auto h-6 w-28 rounded-full" />
+        <Skeleton className="h-60 rounded-3xl" />
+        <Skeleton className="h-32 rounded-3xl" />
+      </div>
+    </div>
+  );
+
   if (!book) {
     if (isLoading) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
-          正在加载数据…
-        </div>
-      );
+      return renderLoading('单词详情加载中…');
     }
     return (
       <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
@@ -55,11 +66,7 @@ export default function WordDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center text-sm text-slate-300">
-        正在加载单词详情…
-      </div>
-    );
+    return renderLoading('获取单词详情中…');
   }
 
   if (!detail) {

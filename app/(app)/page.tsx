@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { BookCard } from '../components/book-card';
 import { useAppHeader } from '../components/app-shell';
+import { LoadingSpinner, Skeleton } from '../components/loading-placeholder';
 import { useAppState } from '../providers';
 
 export default function HomePage() {
@@ -13,6 +14,7 @@ export default function HomePage() {
   const {
     books,
     isLoadingBooks,
+    isLoadingUser,
     isLoggedIn,
     user,
     userProgress,
@@ -38,7 +40,13 @@ export default function HomePage() {
       .filter((item) => Boolean(item.book));
   }, [books, isLoggedIn, user]);
 
+  const isAuthReady = !isLoadingUser;
+  const canStudy = isAuthReady && isLoggedIn;
+
   const handleBookSelect = (bookId: string) => {
+    if (!isAuthReady) {
+      return;
+    }
     if (isLoggedIn) {
       router.push(`/learn/${bookId}`);
       return;
@@ -53,19 +61,22 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col gap-10">
-      <header className="space-y-4">
-        <p className="text-sm uppercase tracking-[0.4em] text-emerald-200/80">
-          学习卡片
-        </p>
-        <h1 className="text-2xl font-semibold text-white md:text-3xl">
-          随时开启你的英语单词旅程
-        </h1>
-        <p className="max-w-xl text-sm text-slate-400">
-          精选多本单词书，卡片式学习体验搭配轻量进度管理，让记忆更专注、更高效。
-        </p>
-      </header>
-
-      {recentBooks.length > 0 ? (
+      {isLoadingUser ? (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-28" />
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <LoadingSpinner size="sm" />
+              <span>同步中…</span>
+            </div>
+          </div>
+          <div className="grid gap-5 justify-items-center sm:grid-cols-2">
+            {[0, 1, 2].map((item) => (
+              <Skeleton key={item} className="h-48 w-full max-w-sm rounded-3xl" />
+            ))}
+          </div>
+        </section>
+      ) : recentBooks.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">最近学习</h2>
@@ -102,7 +113,7 @@ export default function HomePage() {
         </div>
         <div className="grid gap-5 justify-items-center sm:grid-cols-2">
           {books.map((book) => {
-            const progress = isLoggedIn
+            const progress = canStudy
               ? userProgress[book.bookId]
               : undefined;
             return (
@@ -114,8 +125,8 @@ export default function HomePage() {
               wordsCount={book.wordsCount}
               tags={book.tags ?? []}
               progress={progress ? { ...progress, wordsCount: book.wordsCount } : undefined}
-              actionLabel={isLoggedIn ? '开始学习' : '登录后学习'}
-              secondaryLabel={isLoggedIn ? undefined : '点击后将提示登录'}
+              actionLabel={canStudy ? '开始学习' : isAuthReady ? '登录后学习' : '加载中…'}
+              secondaryLabel={canStudy ? undefined : isAuthReady ? '点击后将提示登录' : '请稍候'}
               onAction={() => handleBookSelect(book.bookId)}
             />
             );
