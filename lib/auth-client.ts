@@ -1,7 +1,5 @@
 'use client';
 
-import { getCsrfToken } from 'next-auth/react'
-
 type SignInResult = {
   ok: boolean
   status: number
@@ -26,7 +24,18 @@ export async function signInWithCredentials({
     throw new Error('signInWithCredentials can only be used in the browser')
   }
 
-  const csrfToken = await getCsrfToken()
+  let csrfToken = ''
+  try {
+    const response = await fetch('/api/auth/csrf')
+    if (response.ok) {
+      const payload = await response.json()
+      if (typeof payload?.csrfToken === 'string') {
+        csrfToken = payload.csrfToken
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch CSRF token', error)
+  }
   const body = new URLSearchParams({
     csrfToken: csrfToken ?? '',
     callbackUrl,

@@ -1,12 +1,7 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm'
 
-import { db } from './db';
-import {
-  books,
-  userBookProgress,
-  userWordProgress,
-  words,
-} from '../db/schema';
+import { db } from './db'
+import { books, userBookProgress, userWordProgress, words } from '../db/schema'
 import type {
   Book,
   UserProgress,
@@ -16,24 +11,24 @@ import type {
   WordSentence,
   WordSynonym,
   WordTranslation,
-} from '../app/types';
+} from '../app/types'
 
 function toArray<T>(value: T | T[] | null | undefined): T[] {
-  if (!value) return [];
-  return Array.isArray(value) ? value : [value];
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
 
 function normalizeTranslations(input: any): WordTranslation[] {
   return toArray(input)
     .map((item) => {
-      if (!item) return null;
+      if (!item) return null
       const pos =
         item.pos ??
         item.posEn ??
         item.posCn ??
         item.partOfSpeech ??
         item.partOfSpeechEn ??
-        item.partOfSpeechCn;
+        item.partOfSpeechCn
       const tranCn =
         item.tranCn ??
         item.tranCN ??
@@ -41,7 +36,7 @@ function normalizeTranslations(input: any): WordTranslation[] {
         item.descCn ??
         item.descCN ??
         item.meaning ??
-        '';
+        ''
       const tranOther =
         item.tranOther ??
         item.tranEn ??
@@ -49,8 +44,8 @@ function normalizeTranslations(input: any): WordTranslation[] {
         item.descOther ??
         item.desc ??
         item.definition ??
-        undefined;
-      if (!tranCn && !tranOther) return null;
+        undefined
+      if (!tranCn && !tranOther) return null
       return {
         pos: typeof pos === 'string' && pos.trim().length > 0 ? pos : undefined,
         tranCn: tranCn || (tranOther ?? ''),
@@ -58,101 +53,102 @@ function normalizeTranslations(input: any): WordTranslation[] {
           typeof tranOther === 'string' && tranOther.trim().length > 0
             ? tranOther
             : undefined,
-      } satisfies WordTranslation;
+      } satisfies WordTranslation
     })
-    .filter(Boolean) as WordTranslation[];
+    .filter(Boolean) as WordTranslation[]
 }
 
 function normalizeSynonyms(input: any): WordSynonym[] {
-  const candidates = input?.synos ?? input;
+  const candidates = input?.synos ?? input
   return toArray(candidates)
     .map((item) => {
-      if (!item) return null;
-      const hwdsRaw = toArray(item.hwds ?? item.words);
+      if (!item) return null
+      const hwdsRaw = toArray(item.hwds ?? item.words)
       const hwds = hwdsRaw
         .map((word) => {
-          if (!word) return null;
-          if (typeof word === 'string') return word;
-          if (typeof word.w === 'string') return word.w;
-          if (typeof word.word === 'string') return word.word;
-          return null;
+          if (!word) return null
+          if (typeof word === 'string') return word
+          if (typeof word.w === 'string') return word.w
+          if (typeof word.word === 'string') return word.word
+          return null
         })
-        .filter((value): value is string => Boolean(value && value.trim().length > 0));
-      const tran = item.tran ?? item.tranCn ?? item.meaning ?? '';
-      if (hwds.length === 0 && !tran) return null;
+        .filter((value): value is string =>
+          Boolean(value && value.trim().length > 0)
+        )
+      const tran = item.tran ?? item.tranCn ?? item.meaning ?? ''
+      if (hwds.length === 0 && !tran) return null
       return {
         pos: item.pos ?? item.posCn ?? item.posEn ?? '',
         tran,
         hwds,
-      } satisfies WordSynonym;
+      } satisfies WordSynonym
     })
-    .filter(Boolean) as WordSynonym[];
+    .filter(Boolean) as WordSynonym[]
 }
 
 function normalizePhrases(input: any): WordPhrase[] {
-  const source = input?.phrases ?? input;
+  const source = input?.phrases ?? input
   return toArray(source)
     .map((item) => {
-      if (!item) return null;
-      const phrase = item.pContent ?? item.phrase ?? item.content ?? '';
-      const meaning = item.pCn ?? item.meaning ?? item.translation ?? '';
-      if (!phrase && !meaning) return null;
+      if (!item) return null
+      const phrase = item.pContent ?? item.phrase ?? item.content ?? ''
+      const meaning = item.pCn ?? item.meaning ?? item.translation ?? ''
+      if (!phrase && !meaning) return null
       return {
         phrase,
         meaning,
-      } satisfies WordPhrase;
+      } satisfies WordPhrase
     })
-    .filter(Boolean) as WordPhrase[];
+    .filter(Boolean) as WordPhrase[]
 }
 
 function normalizeRelWords(input: any): WordRel[] {
-  const rels = input?.rels ?? input;
+  const rels = input?.rels ?? input
   return toArray(rels)
     .map((item) => {
-      if (!item) return null;
+      if (!item) return null
       const words = toArray(item.words)
-        .map((word) => {
-          if (!word) return null;
-          const headWord =
-            word.hwd ?? word.headWord ?? word.word ?? word.content ?? '';
-          const tranCn = word.tran ?? word.tranCn ?? word.meaning ?? '';
-          if (!headWord && !tranCn) return null;
-          return {
-            headWord,
-            tranCn,
-          } satisfies WordRel['words'][number];
+        .map((word): WordRel['words'][number] | null => {
+          if (!word) return null
+          const headWordRaw =
+            word.hwd ?? word.headWord ?? word.word ?? word.content ?? ''
+          const tranCnRaw = word.tran ?? word.tranCn ?? word.meaning ?? ''
+          const headWord = headWordRaw?.trim() ?? ''
+          const tranCn = tranCnRaw?.trim() ?? ''
+          if (!headWord && !tranCn) return null
+          const entry: WordRel['words'][number] = tranCn
+            ? { headWord, tranCn }
+            : { headWord }
+          return entry
         })
-        .filter(
-          (value): value is WordRel['words'][number] =>
-            Boolean(value && (value.headWord || value.tranCn))
-        );
-      if (words.length === 0) return null;
+        .filter((value): value is WordRel['words'][number] => value !== null)
+      if (words.length === 0) return null
       return {
         pos: item.pos ?? item.posCn ?? item.posEn ?? '',
         words,
-      } satisfies WordRel;
+      } satisfies WordRel
     })
-    .filter(Boolean) as WordRel[];
+    .filter(Boolean) as WordRel[]
 }
 
 function normalizeSentences(input: any): WordSentence[] {
   return toArray(input)
     .map((item) => {
-      if (!item) return null;
+      if (!item) return null
       const content =
-        item.sContent ?? item.content ?? item.en ?? item.example ?? '';
-      const cn = item.sCn ?? item.cn ?? item.translation ?? undefined;
-      if (!content && !cn) return null;
+        item.sContent ?? item.content ?? item.en ?? item.example ?? ''
+      const cn = item.sCn ?? item.cn ?? item.translation ?? undefined
+      if (!content && !cn) return null
       return {
         sContent: content,
         sCn: cn,
-      } satisfies WordSentence;
+      } satisfies WordSentence
     })
-    .filter(Boolean) as WordSentence[];
+    .filter(Boolean) as WordSentence[]
 }
 
 export async function fetchBooks(): Promise<Book[]> {
-  const rows = await db.select().from(books).orderBy(desc(books.updatedAt));
+  const rows = await db.select().from(books).orderBy(desc(books.updatedAt))
   return rows.map((row) => ({
     id: row.id,
     bookId: row.bookId,
@@ -161,32 +157,36 @@ export async function fetchBooks(): Promise<Book[]> {
     coverUrl: row.coverUrl,
     tags: row.tags,
     description: null,
-  }));
+  }))
 }
 
-function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail | null {
-  if (!rawContent) return null;
-  let content = rawContent;
+function parseWordContent(
+  rawContent: any,
+  fallbackHeadWord: string
+): WordDetail | null {
+  if (!rawContent) return null
+  let content = rawContent
   if (typeof content === 'string') {
     try {
-      content = JSON.parse(content);
+      content = JSON.parse(content)
     } catch (error) {
-      console.warn('Failed to parse word content', error);
-      return null;
+      console.warn('Failed to parse word content', error)
+      return null
     }
   }
 
-  const wordNode = (content.word ?? content) as Record<string, any> | undefined;
-  if (!wordNode) return null;
+  const wordNode = (content.word ?? content) as Record<string, any> | undefined
+  if (!wordNode) return null
 
   const contentPayload =
     (wordNode.content as Record<string, any> | undefined) ??
     (content.content as Record<string, any> | undefined) ??
-    wordNode;
+    wordNode
 
-  const wordHead =
-    (wordNode.wordHead ?? contentPayload.wordHead ?? fallbackHeadWord) as string;
-  if (!wordHead) return null;
+  const wordHead = (wordNode.wordHead ??
+    contentPayload.wordHead ??
+    fallbackHeadWord) as string
+  if (!wordHead) return null
 
   const translations = normalizeTranslations(
     contentPayload.trans ??
@@ -194,16 +194,16 @@ function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail
       wordNode.trans ??
       content.trans ??
       wordNode.translation
-  );
+  )
   const synonymList = normalizeSynonyms(
     contentPayload.syno ?? wordNode.syno ?? content.syno
-  );
+  )
   const phraseList = normalizePhrases(
     contentPayload.phrase ?? wordNode.phrase ?? content.phrase
-  );
+  )
   const relWords = normalizeRelWords(
     contentPayload.relWord ?? wordNode.relWord ?? content.relWord
-  );
+  )
   const sentences = normalizeSentences(
     contentPayload.sentence?.sentences ??
       wordNode.sentence?.sentences ??
@@ -211,7 +211,7 @@ function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail
       wordNode.sentences ??
       content.sentence?.sentences ??
       content.sentences
-  );
+  )
 
   const wordContent = {
     syno: contentPayload.syno,
@@ -223,7 +223,7 @@ function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail
     sentence: contentPayload.sentence,
     ukspeech: contentPayload.ukspeech,
     usspeech: contentPayload.usspeech,
-  } satisfies WordDetail['content'];
+  } satisfies WordDetail['content']
 
   return {
     wordRank: Number(content.wordRank ?? wordNode.wordRank ?? 0),
@@ -242,17 +242,15 @@ function parseWordContent(rawContent: any, fallbackHeadWord: string): WordDetail
       contentPayload.usPhone ??
       content.usphone ??
       content.usPhone,
-    ukspeech:
-      wordNode.ukspeech ?? contentPayload.ukspeech ?? content.ukspeech,
-    usspeech:
-      wordNode.usspeech ?? contentPayload.usspeech ?? content.usspeech,
+    ukspeech: wordNode.ukspeech ?? contentPayload.ukspeech ?? content.ukspeech,
+    usspeech: wordNode.usspeech ?? contentPayload.usspeech ?? content.usspeech,
     trans: translations,
     syno: synonymList,
     phrase: phraseList,
     relWord: relWords,
     sentences,
     content: wordContent,
-  };
+  }
 }
 
 export async function fetchBookWords(bookId: string): Promise<WordDetail[]> {
@@ -265,21 +263,23 @@ export async function fetchBookWords(bookId: string): Promise<WordDetail[]> {
     .from(words)
     .where(eq(words.bookId, bookId))
     .orderBy(words.wordRank)
-    .limit(500);
+    .limit(500)
 
   return rows
     .map((row) => {
-      const parsed = parseWordContent(row.content, row.headWord ?? '');
-      if (!parsed) return null;
+      const parsed = parseWordContent(row.content, row.headWord ?? '')
+      if (!parsed) return null
       return {
         ...parsed,
         wordRank: row.wordRank,
-      };
+      }
     })
-    .filter((item): item is WordDetail => Boolean(item));
+    .filter((item): item is WordDetail => Boolean(item))
 }
 
-export async function fetchUserProgress(userId: number): Promise<UserProgress[]> {
+export async function fetchUserProgress(
+  userId: number
+): Promise<UserProgress[]> {
   const rows = await db
     .select({
       bookId: userBookProgress.bookId,
@@ -290,9 +290,9 @@ export async function fetchUserProgress(userId: number): Promise<UserProgress[]>
     .from(userBookProgress)
     .innerJoin(books, eq(userBookProgress.bookId, books.bookId))
     .where(eq(userBookProgress.userId, userId))
-    .orderBy(desc(userBookProgress.updatedAt));
+    .orderBy(desc(userBookProgress.updatedAt))
 
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return []
 
   const learnedRows = await db
     .select({
@@ -300,16 +300,23 @@ export async function fetchUserProgress(userId: number): Promise<UserProgress[]>
       count: userWordProgress.wordRank,
     })
     .from(userWordProgress)
-    .where(and(eq(userWordProgress.userId, userId), eq(userWordProgress.status, 'known')));
+    .where(
+      and(
+        eq(userWordProgress.userId, userId),
+        eq(userWordProgress.status, 'known')
+      )
+    )
 
   return rows.map((row) => {
-    const learnedCount = learnedRows.filter((item) => item.bookId === row.bookId).length;
+    const learnedCount = learnedRows.filter(
+      (item) => item.bookId === row.bookId
+    ).length
     return {
       bookId: row.bookId,
       lastIndex: row.lastIndex,
       learnedWords: learnedCount,
       updatedAt: row.updatedAt.toISOString(),
       wordsCount: row.wordsCount ?? undefined,
-    };
-  });
+    }
+  })
 }
